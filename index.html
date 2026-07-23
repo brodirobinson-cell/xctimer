@@ -35,7 +35,7 @@
       const v = 5000 / t;
       const vo2 = -4.60 + 0.182258 * v + 0.000104 * Math.pow(v, 2);
       const percentMax = 0.8 + 0.1894393 * Math.exp(-0.012778 * t) + 0.2989558 * Math.exp(-0.1932605 * t);
-      return (vo2 / percentMax).toFixed(1);
+      return parseFloat((vo2 / percentMax).toFixed(1));
     }
 
     const ZONE_INTENSITY = {
@@ -106,6 +106,42 @@
         setAthletes(prev => prev.map(ath => ath.id === id ? { ...ath, selected: !ath.selected } : ath));
       };
 
+      const handleAddAthlete = (e) => {
+        e.preventDefault();
+        if (!newAthleteName.trim()) return;
+
+        let computedVdot = 50;
+        if (customVdot && !isNaN(parseFloat(customVdot))) {
+          computedVdot = parseFloat(customVdot);
+        } else if (newAthlete5k.trim()) {
+          const secs = parseTimeToSeconds(newAthlete5k);
+          if (secs > 0) computedVdot = calculateVDOT(secs);
+        }
+
+        const newEntry = {
+          id: Date.now().toString(),
+          name: newAthleteName.trim(),
+          fiveKPR: newAthlete5k.trim() || 'N/A',
+          vdot: computedVdot,
+          selected: true,
+          splits: [],
+          restTimes: [],
+          status: 'idle',
+          startTime: 0,
+          currentSplit: 0,
+          currentRest: 0
+        };
+
+        setAthletes(prev => [...prev, newEntry]);
+        setNewAthleteName('');
+        setNewAthlete5k('');
+        setCustomVdot('');
+      };
+
+      const handleDeleteAthlete = (id) => {
+        setAthletes(prev => prev.filter(ath => ath.id !== id));
+      };
+
       const handleStartAll = () => {
         const now = Date.now();
         setIsTimerRunning(true);
@@ -137,20 +173,6 @@
         setAthletes(prev => prev.map(ath => ({ ...ath, status: 'idle', splits: [], restTimes: [], currentSplit: 0, currentRest: 0 })));
       };
 
-      const handleAddAthlete = (e) => {
-        e.preventDefault();
-        if (!newAthleteName) return;
-        let computedVdot = customVdot ? parseFloat(customVdot) : calculateVDOT(parseTimeToSeconds(newAthlete5k));
-        setAthletes([...athletes, {
-          id: Date.now().toString(),
-          name: newAthleteName,
-          fiveKPR: newAthlete5k || 'N/A',
-          vdot: computedVdot > 0 ? computedVdot : 50,
-          selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0
-        }]);
-        setNewAthleteName(''); setNewAthlete5k(''); setCustomVdot('');
-      };
-
       const handleExportCSV = () => {
         let csvContent = `data:text/csv;charset=utf-8,Workout Mode: ${workoutType},Distance: ${distance}m\nAthlete,5K PR,VDOT`;
         for (let i = 1; i <= totalReps; i++) csvContent += `,Rep ${i} Split,Rep ${i} Rest`;
@@ -174,11 +196,11 @@
 
       return (
         <div class="w-full px-8 py-6">
-          {/* Desktop Header Bar */}
+          {/* Header */}
           <div class="flex items-center justify-between border-b border-slate-800 pb-5 mb-6">
             <div>
               <h1 class="text-3xl font-black text-indigo-400 tracking-tight">XC Multi-Timer & VDOT Dashboard</h1>
-              <p class="text-slate-400 text-sm mt-1">Desktop Coaching Suite — Jack Daniels VDOT Pacing & Group Interval Tracker</p>
+              <p class="text-slate-400 text-sm mt-1">Desktop Coaching Suite — Multi-Runner Workout Timing</p>
             </div>
             <div class="flex items-center gap-3">
               <button onClick={handleStartAll} class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg font-bold text-base shadow-md transition-colors">
@@ -189,13 +211,56 @@
             </div>
           </div>
 
-          {/* Desktop 2-Column Main Layout */}
           <div class="grid grid-cols-12 gap-6">
             
-            {/* Left Control Sidebar (4 Columns) */}
+            {/* Left Sidebar Controls */}
             <div class="col-span-4 space-y-6">
               
-              {/* Workout Selector */}
+              {/* Add New Athlete Panel */}
+              <div class="bg-slate-900 p-5 rounded-xl border border-indigo-500/30">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400 mb-3">Add Athlete to Roster</h2>
+                <form onSubmit={handleAddAthlete} class="space-y-3">
+                  <div>
+                    <label class="block text-xs text-slate-400 font-semibold mb-1">Athlete Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Jordan Smith"
+                      value={newAthleteName}
+                      onChange={e => setNewAthleteName(e.target.value)}
+                      class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500"
+                      required
+                    />
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <div>
+                      <label class="block text-xs text-slate-400 font-semibold mb-1">5K PR (mm:ss)</label>
+                      <input
+                        type="text"
+                        placeholder="18:30"
+                        value={newAthlete5k}
+                        onChange={e => setNewAthlete5k(e.target.value)}
+                        class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label class="block text-xs text-slate-400 font-semibold mb-1">Manual VDOT</label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        placeholder="Optional"
+                        value={customVdot}
+                        onChange={e => setCustomVdot(e.target.value)}
+                        class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                  <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-md text-sm transition-colors shadow-md">
+                    + Add Athlete Now
+                  </button>
+                </form>
+              </div>
+
+              {/* Workout Setup */}
               <div class="bg-slate-900 p-5 rounded-xl border border-slate-800">
                 <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400 mb-4">Workout Mode</h2>
                 <div class="grid grid-cols-2 gap-2 mb-4">
@@ -208,7 +273,7 @@
                     <button
                       key={mode.key}
                       onClick={() => handleWorkoutTypeChange(mode.key)}
-                      class={`p-3 text-center rounded-lg border text-sm font-bold transition-all ${workoutType === mode.key ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'}`}
+                      class={`p-2.5 text-center rounded-lg border text-xs font-bold transition-all ${workoutType === mode.key ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'}`}
                     >
                       {mode.label}
                     </button>
@@ -218,15 +283,15 @@
                 <div class="grid grid-cols-3 gap-3 pt-3 border-t border-slate-800">
                   <div>
                     <label class="block text-xs font-bold text-slate-400 mb-1">Distance (m)</label>
-                    <input type="number" value={distance} onChange={e => setDistance(Number(e.target.value))} class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-1.5 text-white font-mono text-sm outline-none focus:border-indigo-500" />
+                    <input type="number" value={distance} onChange={e => setDistance(Number(e.target.value))} class="w-full bg-slate-950 border border-slate-800 rounded-md px-2.5 py-1.5 text-white font-mono text-sm outline-none focus:border-indigo-500" />
                   </div>
                   <div>
-                    <label class="block text-xs font-bold text-slate-400 mb-1">Target Reps</label>
-                    <input type="number" value={totalReps} onChange={e => setTotalReps(Number(e.target.value))} class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-1.5 text-white font-mono text-sm outline-none focus:border-indigo-500" />
+                    <label class="block text-xs font-bold text-slate-400 mb-1">Reps</label>
+                    <input type="number" value={totalReps} onChange={e => setTotalReps(Number(e.target.value))} class="w-full bg-slate-950 border border-slate-800 rounded-md px-2.5 py-1.5 text-white font-mono text-sm outline-none focus:border-indigo-500" />
                   </div>
                   <div>
                     <label class="block text-xs font-bold text-slate-400 mb-1">Rest (s)</label>
-                    <input type="number" value={targetRest} onChange={e => setTargetRest(Number(e.target.value))} class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-1.5 text-white font-mono text-sm outline-none focus:border-indigo-500" />
+                    <input type="number" value={targetRest} onChange={e => setTargetRest(Number(e.target.value))} class="w-full bg-slate-950 border border-slate-800 rounded-md px-2.5 py-1.5 text-white font-mono text-sm outline-none focus:border-indigo-500" />
                   </div>
                 </div>
               </div>
@@ -234,107 +299,103 @@
               {/* Roster Management */}
               <div class="bg-slate-900 p-5 rounded-xl border border-slate-800">
                 <div class="flex justify-between items-center mb-3">
-                  <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400">Roster Selection</h2>
-                  <span class="text-xs text-slate-500">{activeAthletes.length} / {athletes.length} Active</span>
+                  <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400">Manage Roster</h2>
+                  <span class="text-xs text-slate-400 font-mono">{activeAthletes.length} Active</span>
                 </div>
-                <div class="space-y-1.5 max-h-64 overflow-y-auto pr-1">
-                  {athletes.map(ath => (
-                    <label key={ath.id} class={`flex items-center justify-between p-2.5 rounded-lg border text-sm cursor-pointer transition-all ${ath.selected ? 'bg-indigo-950/40 border-indigo-500/50 text-indigo-100 font-semibold' : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300'}`}>
-                      <div class="flex items-center gap-3">
-                        <input type="checkbox" checked={ath.selected} onChange={() => toggleAthleteSelection(ath.id)} class="rounded border-slate-700 text-indigo-600 h-4 w-4" />
-                        <span>{ath.name}</span>
+                <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {athletes.length === 0 ? (
+                    <p class="text-xs text-slate-500 italic text-center py-4">No athletes added yet.</p>
+                  ) : (
+                    athletes.map(ath => (
+                      <div key={ath.id} class={`flex items-center justify-between p-2 rounded-lg border text-sm transition-all ${ath.selected ? 'bg-indigo-950/40 border-indigo-500/50 text-indigo-100 font-semibold' : 'bg-slate-950 border-slate-800 text-slate-500'}`}>
+                        <label class="flex items-center gap-2.5 cursor-pointer flex-1">
+                          <input type="checkbox" checked={ath.selected} onChange={() => toggleAthleteSelection(ath.id)} class="rounded border-slate-700 text-indigo-600 h-4 w-4" />
+                          <span>{ath.name}</span>
+                        </label>
+                        <div class="flex items-center gap-3">
+                          <span class="text-xs font-mono text-slate-400">VDOT {ath.vdot}</span>
+                          <button onClick={() => handleDeleteAthlete(ath.id)} class="text-slate-600 hover:text-rose-400 text-xs px-1" title="Remove Athlete">✕</button>
+                        </div>
                       </div>
-                      <span class="text-xs font-mono text-slate-400">VDOT {ath.vdot} | {ath.fiveKPR}</span>
-                    </label>
-                  ))}
+                    ))
+                  )}
                 </div>
-              </div>
-
-              {/* Add Athlete */}
-              <div class="bg-slate-900 p-5 rounded-xl border border-slate-800">
-                <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400 mb-3">Add New Athlete</h2>
-                <form onSubmit={handleAddAthlete} class="space-y-3">
-                  <div>
-                    <input type="text" placeholder="Athlete Name" value={newAthleteName} onChange={e => setNewAthleteName(e.target.value)} class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500" />
-                  </div>
-                  <div class="grid grid-cols-2 gap-2">
-                    <input type="text" placeholder="5K PR (18:30)" value={newAthlete5k} onChange={e => setNewAthlete5k(e.target.value)} class="bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500" />
-                    <input type="number" step="0.1" placeholder="Manual VDOT" value={customVdot} onChange={e => setCustomVdot(e.target.value)} class="bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500" />
-                  </div>
-                  <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold py-2 rounded-md text-sm transition-colors">Add to Roster</button>
-                </form>
               </div>
 
             </div>
 
-            {/* Right Live Grid (8 Columns) */}
+            {/* Right Main Grid */}
             <div class="col-span-8">
-              <div class="grid grid-cols-2 gap-4">
-                {activeAthletes.map(ath => {
-                  const targetSplitSecs = calculateZoneTargetSplit(ath.vdot, distance, workoutType);
-                  const currentRepNumber = ath.splits.length + 1;
+              {activeAthletes.length === 0 ? (
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center text-slate-500">
+                  <p class="text-lg font-semibold mb-2 text-slate-400">No active athletes selected</p>
+                  <p class="text-sm">Use the panel on the left to add athletes or check off runners from your roster to start timing.</p>
+                </div>
+              ) : (
+                <div class="grid grid-cols-2 gap-4">
+                  {activeAthletes.map(ath => {
+                    const targetSplitSecs = calculateZoneTargetSplit(ath.vdot, distance, workoutType);
+                    const currentRepNumber = ath.splits.length + 1;
 
-                  return (
-                    <div key={ath.id} class={`p-5 rounded-xl border transition-all ${ath.status === 'running' ? 'bg-slate-900 border-emerald-500 ring-1 ring-emerald-500' : ath.status === 'resting' ? 'bg-slate-900 border-amber-500' : 'bg-slate-900 border-slate-800'}`}>
-                      <div class="flex justify-between items-start mb-3">
-                        <div>
-                          <h3 class="font-bold text-xl text-slate-100">{ath.name}</h3>
-                          <div class="text-xs text-slate-400 mt-0.5">VDOT: <span class="font-bold text-indigo-400">{ath.vdot}</span> | 5K PR: {ath.fiveKPR}</div>
-                        </div>
-                        <div class="text-right">
+                    return (
+                      <div key={ath.id} class={`p-5 rounded-xl border transition-all ${ath.status === 'running' ? 'bg-slate-900 border-emerald-500 ring-1 ring-emerald-500' : ath.status === 'resting' ? 'bg-slate-900 border-amber-500' : 'bg-slate-900 border-slate-800'}`}>
+                        <div class="flex justify-between items-start mb-3">
+                          <div>
+                            <h3 class="font-bold text-xl text-slate-100">{ath.name}</h3>
+                            <div class="text-xs text-slate-400 mt-0.5">VDOT: <span class="font-bold text-indigo-400">{ath.vdot}</span> | 5K: {ath.fiveKPR}</div>
+                          </div>
                           <span class="text-xs font-bold px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-300">
                             Rep {Math.min(currentRepNumber, totalReps)} / {totalReps}
                           </span>
                         </div>
-                      </div>
 
-                      <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 mb-4">
-                        <div class="flex justify-between items-center text-xs text-slate-400 pb-2 border-b border-slate-800/80">
-                          <span>Target Pace ({workoutType}):</span>
-                          <span class="font-mono text-indigo-300 font-bold text-sm">{formatTime(targetSplitSecs)}</span>
-                        </div>
-
-                        <div class="flex justify-between items-end mt-3">
-                          <div>
-                            <div class="text-xs text-slate-500 font-bold uppercase">Rep Time</div>
-                            <div class={`text-4xl font-mono font-black ${ath.status === 'running' ? 'text-emerald-400' : 'text-slate-100'}`}>
-                              {ath.status === 'running' ? formatTime(ath.currentSplit) : formatTime(ath.splits[ath.splits.length - 1] || 0)}
-                            </div>
+                        <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 mb-4">
+                          <div class="flex justify-between items-center text-xs text-slate-400 pb-2 border-b border-slate-800/80">
+                            <span>Target Pace ({workoutType}):</span>
+                            <span class="font-mono text-indigo-300 font-bold text-sm">{formatTime(targetSplitSecs)}</span>
                           </div>
 
-                          {ath.status === 'resting' && (
-                            <div class="text-right">
-                              <div class="text-xs text-amber-400 font-bold uppercase">Resting</div>
-                              <div class="text-2xl font-mono font-bold text-amber-300">{formatTime(ath.currentRest)}</div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div class="mb-3">
-                        {ath.status === 'running' && <button onClick={() => handleStopIndividual(ath.id)} class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-lg text-lg transition-colors">STOP REP {currentRepNumber}</button>}
-                        {ath.status === 'resting' && <button onClick={() => handleStartNextRep(ath.id)} class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg transition-colors">START REP {currentRepNumber}</button>}
-                        {ath.status === 'idle' && <button onClick={() => handleStopIndividual(ath.id)} disabled class="w-full bg-slate-800 text-slate-600 font-semibold py-2.5 rounded-lg cursor-not-allowed">Ready</button>}
-                      </div>
-
-                      {/* Split History Log */}
-                      {ath.splits.length > 0 && (
-                        <div class="pt-3 border-t border-slate-800">
-                          <div class="text-xs font-bold text-slate-500 uppercase mb-2">Completed Splits</div>
-                          <div class="flex flex-wrap gap-2">
-                            {ath.splits.map((s, i) => (
-                              <div key={i} class="text-xs font-mono px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-indigo-300">
-                                R{i+1}: <span class="font-bold text-slate-200">{formatTime(s)}</span>
+                          <div class="flex justify-between items-end mt-3">
+                            <div>
+                              <div class="text-xs text-slate-500 font-bold uppercase">Rep Time</div>
+                              <div class={`text-4xl font-mono font-black ${ath.status === 'running' ? 'text-emerald-400' : 'text-slate-100'}`}>
+                                {ath.status === 'running' ? formatTime(ath.currentSplit) : formatTime(ath.splits[ath.splits.length - 1] || 0)}
                               </div>
-                            ))}
+                            </div>
+
+                            {ath.status === 'resting' && (
+                              <div class="text-right">
+                                <div class="text-xs text-amber-400 font-bold uppercase">Resting</div>
+                                <div class="text-2xl font-mono font-bold text-amber-300">{formatTime(ath.currentRest)}</div>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      )}
 
-                    </div>
-                  );
-                })}
-              </div>
+                        <div class="mb-3">
+                          {ath.status === 'running' && <button onClick={() => handleStopIndividual(ath.id)} class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-lg text-lg transition-colors">STOP REP {currentRepNumber}</button>}
+                          {ath.status === 'resting' && <button onClick={() => handleStartNextRep(ath.id)} class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg transition-colors">START REP {currentRepNumber}</button>}
+                          {ath.status === 'idle' && <button onClick={() => handleStopIndividual(ath.id)} disabled class="w-full bg-slate-800 text-slate-600 font-semibold py-2.5 rounded-lg cursor-not-allowed">Ready</button>}
+                        </div>
+
+                        {ath.splits.length > 0 && (
+                          <div class="pt-3 border-t border-slate-800">
+                            <div class="text-xs font-bold text-slate-500 uppercase mb-2">Completed Splits</div>
+                            <div class="flex flex-wrap gap-2">
+                              {ath.splits.map((s, i) => (
+                                <div key={i} class="text-xs font-mono px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-indigo-300">
+                                  R{i+1}: <span class="font-bold text-slate-200">{formatTime(s)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
           </div>
