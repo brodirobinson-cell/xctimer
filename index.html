@@ -2,302 +2,265 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>XC Multi-Timer & Multi-Workout VDOT Tracker</title>
-  <!-- Production React Builds -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <!-- Fast Minified Tailwind CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>XC Trackside Timer</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #6366f1;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --text: #f8fafc;
+      --subtext: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--bg); color: var(--text); padding: 12px; padding-bottom: 40px; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #334155; }
+    h1 { font-size: 1.25rem; font-weight: 800; color: #818cf8; }
+    
+    .btn { background: var(--accent); color: white; border: none; padding: 10px 14px; font-weight: 700; border-radius: 8px; font-size: 0.9rem; cursor: pointer; }
+    .btn-success { background: var(--success); }
+    .btn-danger { background: var(--danger); }
+    .btn-reset { background: #334155; color: var(--subtext); }
+    .btn-big { width: 100%; padding: 16px; font-size: 1.2rem; border-radius: 12px; text-transform: uppercase; tracking: 1px; }
+
+    .modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+    .mode-btn { background: var(--card); border: 1px solid #334155; padding: 10px; border-radius: 8px; color: var(--subtext); text-align: left; cursor: pointer; }
+    .mode-btn.active { border-color: var(--accent); background: #312e81; color: white; font-weight: bold; }
+    .mode-btn div:first-child { font-size: 0.85rem; }
+    .mode-btn div:last-child { font-size: 0.7rem; opacity: 0.7; }
+
+    .params { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: var(--card); padding: 10px; border-radius: 8px; margin-bottom: 16px; }
+    .param-box label { display: block; font-size: 0.65rem; color: var(--subtext); text-transform: uppercase; margin-bottom: 4px; }
+    .param-box input { width: 100%; background: #0f172a; border: 1px solid #334155; color: white; padding: 6px; border-radius: 6px; font-family: monospace; font-size: 0.9rem; }
+
+    .runner-card { background: var(--card); border: 2px solid #334155; border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+    .runner-card.running { border-color: var(--success); }
+    .runner-card.resting { border-color: var(--warning); }
+    
+    .runner-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .runner-name { font-size: 1.1rem; font-weight: 700; }
+    .runner-vdot { font-size: 0.75rem; color: var(--subtext); }
+
+    .timer-display { background: #0f172a; border-radius: 8px; padding: 12px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+    .time-val { font-family: monospace; font-size: 2.2rem; font-weight: 800; }
+    .running .time-val { color: var(--success); }
+    .resting-val { font-family: monospace; font-size: 1.4rem; color: var(--warning); text-align: right; }
+
+    .splits-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; font-family: monospace; font-size: 0.75rem; color: #a5b4fc; }
+    .split-chip { background: #0f172a; padding: 2px 6px; border-radius: 4px; }
+  </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
-  <div id="root"></div>
+<body>
+
+  <header>
+    <h1>XC Trackside Timer</h1>
+    <div>
+      <button class="btn btn-reset" onclick="resetAll()">Reset</button>
+      <button class="btn" onclick="exportCSV()">CSV</button>
+    </div>
+  </header>
+
+  <!-- Workout Mode -->
+  <div class="modes">
+    <button class="mode-btn active" id="btn-INTERVAL" onclick="setMode('INTERVAL')">
+      <div>Intervals</div><div>VO2max (3k-5k)</div>
+    </button>
+    <button class="mode-btn" id="btn-TEMPO" onclick="setMode('TEMPO')">
+      <div>Tempo</div><div>Threshold Work</div>
+    </button>
+    <button class="mode-btn" id="btn-REP" onclick="setMode('REP')">
+      <div>Speed Reps</div><div>Economy / Speed</div>
+    </button>
+    <button class="mode-btn" id="btn-EASY" onclick="setMode('EASY')">
+      <div>Easy / Recovery</div><div>Continuous Run</div>
+    </button>
+  </div>
+
+  <!-- Parameters -->
+  <div class="params">
+    <div class="param-box">
+      <label>Distance (m)</label>
+      <input type="number" id="cfg-dist" value="800" onchange="render()">
+    </div>
+    <div class="param-box">
+      <label>Reps</label>
+      <input type="number" id="cfg-reps" value="5">
+    </div>
+    <div class="param-box">
+      <label>Rest (s)</label>
+      <input type="number" id="cfg-rest" value="120">
+    </div>
+  </div>
+
+  <button class="btn btn-success btn-big" style="margin-bottom: 16px;" onclick="startAll()">▶ START ALL RUNNERS</button>
+
+  <div id="roster"></div>
 
   <script>
-    const e = React.createElement;
-    const { useState, useEffect } = React;
+    let currentMode = 'INTERVAL';
+    let isRunning = false;
+    let animFrame;
 
-    // --- TIME & PACING CALCULATIONS ---
-    function parseTimeToSeconds(timeStr) {
-      if (!timeStr) return 0;
-      const parts = timeStr.trim().split(':');
-      if (parts.length === 2) return parseInt(parts[0], 10) * 60 + parseFloat(parts[1]);
-      return parseFloat(timeStr) || 0;
+    const INTENSITY = { EASY: 0.70, TEMPO: 0.88, INTERVAL: 0.98, REP: 1.08 };
+
+    let athletes = [
+      { id: 1, name: 'Alex M.', vdot: 57.8, status: 'idle', splits: [], start: 0, current: 0, restStart: 0, restCurrent: 0 },
+      { id: 2, name: 'Jordan T.', vdot: 53.2, status: 'idle', splits: [], start: 0, current: 0, restStart: 0, restCurrent: 0 },
+      { id: 3, name: 'Sam K.', vdot: 63.1, status: 'idle', splits: [], start: 0, current: 0, restStart: 0, restCurrent: 0 }
+    ];
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`btn-${mode}`).classList.add('active');
+      
+      if(mode === 'EASY') { document.getElementById('cfg-dist').value = 5000; document.getElementById('cfg-reps').value = 1; }
+      if(mode === 'TEMPO') { document.getElementById('cfg-dist').value = 1600; document.getElementById('cfg-reps').value = 3; }
+      if(mode === 'INTERVAL') { document.getElementById('cfg-dist').value = 800; document.getElementById('cfg-reps').value = 5; }
+      if(mode === 'REP') { document.getElementById('cfg-dist').value = 400; document.getElementById('cfg-reps').value = 8; }
+      render();
     }
 
-    function formatTime(seconds) {
-      if (!seconds || isNaN(seconds) || seconds <= 0) return "00:00.0";
-      const mins = Math.floor(seconds / 60);
-      const secs = (seconds % 60).toFixed(1);
-      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    function formatTime(s) {
+      if (!s || s <= 0) return "00:00.0";
+      const m = Math.floor(s / 60);
+      const secs = (s % 60).toFixed(1);
+      return `${m}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    function calculateVDOT(fiveKSeconds) {
-      if (!fiveKSeconds || fiveKSeconds <= 0) return 0;
-      const t = fiveKSeconds / 60;
-      const v = 5000 / t;
-      const vo2 = -4.60 + 0.182258 * v + 0.000104 * Math.pow(v, 2);
-      const percentMax = 0.8 + 0.1894393 * Math.exp(-0.012778 * t) + 0.2989558 * Math.exp(-0.1932605 * t);
-      return (vo2 / percentMax).toFixed(1);
-    }
-
-    const ZONE_INTENSITY = {
-      EASY: 0.70,
-      TEMPO: 0.88,
-      INTERVAL: 0.98,
-      REP: 1.08
-    };
-
-    function calculateZoneTargetSplit(vdot, distanceMeters, zoneKey) {
-      if (!vdot || vdot <= 0) return 0;
-      const intensity = ZONE_INTENSITY[zoneKey] || 0.98;
-      const targetVO2 = vdot * intensity;
+    function calcTarget(vdot, meters, mode) {
+      if (!vdot) return 0;
+      const targetVO2 = vdot * (INTENSITY[mode] || 0.98);
       const a = 0.000104, b = 0.182258, c = -(4.60 + targetVO2);
       const v = (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
-      const pacePerMeter = 1 / v;
-      return (pacePerMeter * distanceMeters * 60);
+      return (1 / v) * meters * 60;
     }
 
-    function App() {
-      const [workoutType, setWorkoutType] = useState('INTERVAL');
-      const [distance, setDistance] = useState(800);
-      const [totalReps, setTotalReps] = useState(5);
-      const [targetRest, setTargetRest] = useState(120);
-
-      const [athletes, setAthletes] = useState([
-        { id: '1', name: 'Alex M.', fiveKPR: '17:30', vdot: 57.8, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
-        { id: '2', name: 'Jordan T.', fiveKPR: '18:45', vdot: 53.2, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
-        { id: '3', name: 'Sam K.', fiveKPR: '16:15', vdot: 63.1, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 }
-      ]);
-
-      const [newAthleteName, setNewAthleteName] = useState('');
-      const [newAthlete5k, setNewAthlete5k] = useState('');
-      const [customVdot, setCustomVdot] = useState('');
-      const [isTimerRunning, setIsTimerRunning] = useState(false);
-
-      const handleWorkoutTypeChange = (mode) => {
-        setWorkoutType(mode);
-        if (mode === 'EASY') { setDistance(5000); setTotalReps(1); setTargetRest(0); }
-        else if (mode === 'TEMPO') { setDistance(1600); setTotalReps(3); setTargetRest(60); }
-        else if (mode === 'INTERVAL') { setDistance(800); setTotalReps(5); setTargetRest(120); }
-        else if (mode === 'REP') { setDistance(400); setTotalReps(8); setTargetRest(180); }
-      };
-
-      useEffect(() => {
-        let animationFrameId;
-        const updateTimers = () => {
-          const now = Date.now();
-          setAthletes(prevAthletes =>
-            prevAthletes.map(ath => {
-              if (!ath.selected) return ath;
-              if (ath.status === 'running') {
-                return { ...ath, currentSplit: (now - ath.startTime) / 1000 };
-              } else if (ath.status === 'resting') {
-                return { ...ath, currentRest: (now - ath.restStartTime) / 1000 };
-              }
-              return ath;
-            })
-          );
-          if (isTimerRunning) animationFrameId = requestAnimationFrame(updateTimers);
-        };
-
-        if (isTimerRunning) animationFrameId = requestAnimationFrame(updateTimers);
-        return () => cancelAnimationFrame(animationFrameId);
-      }, [isTimerRunning]);
-
-      const toggleAthleteSelection = (id) => {
-        setAthletes(prev => prev.map(ath => ath.id === id ? { ...ath, selected: !ath.selected } : ath));
-      };
-
-      const handleStartAll = () => {
-        const now = Date.now();
-        setIsTimerRunning(true);
-        setAthletes(prev => prev.map(ath => ath.selected ? { ...ath, status: 'running', startTime: now, currentSplit: 0 } : ath));
-      };
-
-      const handleStopIndividual = (id) => {
-        const now = Date.now();
-        setAthletes(prev => prev.map(ath => {
-          if (ath.id === id && ath.status === 'running') {
-            return { ...ath, status: 'resting', splits: [...ath.splits, ath.currentSplit], restStartTime: now, currentRest: 0 };
-          }
-          return ath;
-        }));
-      };
-
-      const handleStartNextRep = (id) => {
-        const now = Date.now();
-        setAthletes(prev => prev.map(ath => {
-          if (ath.id === id && ath.status === 'resting') {
-            return { ...ath, status: 'running', restTimes: [...ath.restTimes, ath.currentRest], startTime: now, currentSplit: 0 };
-          }
-          return ath;
-        }));
-      };
-
-      const handleResetAll = () => {
-        setIsTimerRunning(false);
-        setAthletes(prev => prev.map(ath => ({ ...ath, status: 'idle', splits: [], restTimes: [], currentSplit: 0, currentRest: 0 })));
-      };
-
-      const handleAddAthlete = (ev) => {
-        ev.preventDefault();
-        if (!newAthleteName) return;
-        let computedVdot = customVdot ? parseFloat(customVdot) : calculateVDOT(parseTimeToSeconds(newAthlete5k));
-        setAthletes([...athletes, {
-          id: Date.now().toString(),
-          name: newAthleteName,
-          fiveKPR: newAthlete5k || 'N/A',
-          vdot: computedVdot > 0 ? computedVdot : 50,
-          selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0
-        }]);
-        setNewAthleteName(''); setNewAthlete5k(''); setCustomVdot('');
-      };
-
-      const handleExportCSV = () => {
-        let csvContent = `data:text/csv;charset=utf-8,Workout Mode: ${workoutType},Distance: ${distance}m\nAthlete,5K PR,VDOT`;
-        for (let i = 1; i <= totalReps; i++) csvContent += `,Rep ${i} Split,Rep ${i} Rest`;
-        csvContent += "\n";
-
-        athletes.filter(a => a.selected).forEach(ath => {
-          let row = `"${ath.name}","${ath.fiveKPR}",${ath.vdot}`;
-          for (let i = 0; i < totalReps; i++) row += `,${formatTime(ath.splits[i] || 0)},${formatTime(ath.restTimes[i] || 0)}`;
-          csvContent += row + "\n";
-        });
-
-        const link = document.createElement("a");
-        link.setAttribute("href", encodeURI(csvContent));
-        link.setAttribute("download", `XC_${workoutType}_${distance}m_${new Date().toISOString().slice(0,10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      };
-
-      const activeAthletes = athletes.filter(a => a.selected);
-
-      return e('div', { className: 'max-w-7xl mx-auto p-4 sm:p-6' },
-        // Header
-        e('div', { className: 'flex flex-col md:flex-row md:items-center justify-between border-b border-gray-700 pb-4 mb-6 gap-4' },
-          e('div', null,
-            e('h1', { className: 'text-3xl font-extrabold text-indigo-400 tracking-tight' }, 'XC Workout & Multi-Timer'),
-            e('p', { className: 'text-gray-400 text-sm' }, 'Jack Daniels VDOT Pace Generator for Easy, Tempo, Interval & Speed Workouts')
-          ),
-          e('div', { className: 'flex gap-2' },
-            e('button', { onClick: handleStartAll, className: 'bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg' }, `▶ START ALL (${activeAthletes.length})`),
-            e('button', { onClick: handleResetAll, className: 'bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-2.5 rounded-lg font-semibold' }, 'Reset'),
-            e('button', { onClick: handleExportCSV, className: 'bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg font-semibold' }, 'Export CSV')
-          )
-        ),
-
-        // Workout Mode Selector
-        e('div', { className: 'bg-gray-800 p-4 rounded-xl mb-6 border border-gray-700' },
-          e('label', { className: 'block text-xs font-semibold uppercase text-gray-400 mb-2' }, 'Select Workout Mode'),
-          e('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2' },
-            [
-              { key: 'EASY', label: 'Easy / Recovery', desc: 'Continuous aerobic pace' },
-              { key: 'TEMPO', label: 'Tempo / Threshold', desc: 'Lactate threshold work' },
-              { key: 'INTERVAL', label: 'Intervals (VO2max)', desc: '3k-5k race pace reps' },
-              { key: 'REP', label: 'Speed Repetitions', desc: 'Shorter, fast economy reps' }
-            ].map(mode =>
-              e('button', {
-                key: mode.key,
-                onClick: () => handleWorkoutTypeChange(mode.key),
-                className: `p-3 rounded-lg border text-left transition-all ${workoutType === mode.key ? 'bg-indigo-600 border-indigo-400 text-white font-bold' : 'bg-gray-900 border-gray-700 text-gray-300 hover:bg-gray-800'}`
-              },
-                e('div', { className: 'text-sm font-bold' }, mode.label),
-                e('div', { className: 'text-xs opacity-75' }, mode.desc)
-              )
-            )
-          ),
-
-          // Parameter Inputs
-          e('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-700' },
-            e('div', null,
-              e('label', { className: 'block text-xs font-semibold uppercase text-gray-400 mb-1' }, 'Distance (Meters)'),
-              e('input', { type: 'number', value: distance, onChange: ev => setDistance(Number(ev.target.value)), className: 'w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono outline-none' })
-            ),
-            e('div', null,
-              e('label', { className: 'block text-xs font-semibold uppercase text-gray-400 mb-1' }, 'Reps'),
-              e('input', { type: 'number', value: totalReps, onChange: ev => setTotalReps(Number(ev.target.value)), className: 'w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono outline-none' })
-            ),
-            e('div', null,
-              e('label', { className: 'block text-xs font-semibold uppercase text-gray-400 mb-1' }, 'Target Rest (Secs)'),
-              e('input', { type: 'number', value: targetRest, onChange: ev => setTargetRest(Number(ev.target.value)), className: 'w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono outline-none' })
-            )
-          )
-        ),
-
-        // Roster Selection
-        e('div', { className: 'bg-gray-800 p-4 rounded-xl border border-gray-700 mb-6' },
-          e('h2', { className: 'text-md font-bold text-gray-200 mb-2' }, 'Participating Athletes'),
-          e('div', { className: 'flex flex-wrap gap-2' },
-            athletes.map(ath =>
-              e('label', { key: ath.id, className: `flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition-all ${ath.selected ? 'bg-indigo-950 border-indigo-500 text-indigo-200 font-semibold' : 'bg-gray-900 border-gray-700 text-gray-400'}` },
-                e('input', { type: 'checkbox', checked: ath.selected, onChange: () => toggleAthleteSelection(ath.id), className: 'rounded border-gray-700 text-indigo-600 h-4 w-4' }),
-                e('span', null, ath.name),
-                e('span', { className: 'text-xs opacity-60' }, `(${ath.vdot} VDOT)`)
-              )
-            )
-          )
-        ),
-
-        // Active Timer Grid
-        e('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8' },
-          activeAthletes.map(ath => {
-            const targetSplitSecs = calculateZoneTargetSplit(ath.vdot, distance, workoutType);
-            const currentRepNumber = ath.splits.length + 1;
-
-            return e('div', { key: ath.id, className: `p-5 rounded-xl border ${ath.status === 'running' ? 'bg-gray-800 border-emerald-500 shadow-lg' : ath.status === 'resting' ? 'bg-gray-800 border-amber-500' : 'bg-gray-800 border-gray-700'}` },
-              e('div', { className: 'flex justify-between items-start mb-2' },
-                e('div', null,
-                  e('h3', { className: 'font-bold text-lg text-gray-100' }, ath.name),
-                  e('p', { className: 'text-xs text-gray-400' }, 'VDOT: ', e('span', { className: 'font-semibold text-indigo-400' }, ath.vdot), ` | 5K: ${ath.fiveKPR}`)
-                ),
-                e('span', { className: 'text-xs font-bold px-2.5 py-1 rounded-full bg-gray-900 text-gray-300' }, `Rep ${Math.min(currentRepNumber, totalReps)} / ${totalReps}`)
-              ),
-
-              e('div', { className: 'my-4 bg-gray-900 p-3 rounded-lg border border-gray-800' },
-                e('div', { className: 'text-xs text-gray-400 flex justify-between mb-1' },
-                  e('span', null, `Target (${workoutType}):`),
-                  e('span', { className: 'font-mono text-indigo-300 font-semibold' }, formatTime(targetSplitSecs))
-                ),
-                e('div', { className: 'flex justify-between items-baseline mt-2' },
-                  e('div', null,
-                    e('div', { className: 'text-xs text-gray-500 uppercase font-semibold' }, 'Rep Time'),
-                    e('div', { className: `text-3xl font-mono font-extrabold ${ath.status === 'running' ? 'text-emerald-400' : 'text-gray-200'}` },
-                      ath.status === 'running' ? formatTime(ath.currentSplit) : formatTime(ath.splits[ath.splits.length - 1] || 0)
-                    )
-                  ),
-                  ath.status === 'resting' && e('div', { className: 'text-right' },
-                    e('div', { className: 'text-xs text-amber-400 uppercase font-semibold' }, 'Resting'),
-                    e('div', { className: 'text-2xl font-mono font-bold text-amber-300' }, formatTime(ath.currentRest))
-                  )
-                )
-              ),
-
-              e('div', null,
-                ath.status === 'running' && e('button', { onClick: () => handleStopIndividual(ath.id), className: 'w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg text-lg' }, `STOP REP ${currentRepNumber}`),
-                ath.status === 'resting' && e('button', { onClick: () => handleStartNextRep(ath.id), className: 'w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg' }, `START REP ${currentRepNumber}`)
-              ),
-
-              ath.splits.length > 0 && e('div', { className: 'mt-4 pt-3 border-t border-gray-700 flex flex-wrap gap-1.5' },
-                ath.splits.map((s, i) => e('span', { key: i, className: 'text-xs font-mono px-2 py-0.5 rounded bg-gray-900 text-indigo-300' }, `R${i+1}: ${formatTime(s)}`))
-              )
-            );
-          })
-        ),
-
-        // Add Athlete Form
-        e('div', { className: 'bg-gray-800 p-5 rounded-xl border border-gray-700' },
-          e('h2', { className: 'text-lg font-bold text-gray-200 mb-3' }, 'Add New Athlete'),
-          e('form', { onSubmit: handleAddAthlete, className: 'grid grid-cols-1 md:grid-cols-4 gap-3' },
-            e('input', { type: 'text', placeholder: 'Name', value: newAthleteName, onChange: ev => setNewAthleteName(ev.target.value), className: 'bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white outline-none' }),
-            e('input', { type: 'text', placeholder: '5K PR (e.g. 18:30)', value: newAthlete5k, onChange: ev => setNewAthlete5k(ev.target.value), className: 'bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white outline-none' }),
-            e('input', { type: 'number', step: '0.1', placeholder: 'Manual VDOT (Optional)', value: customVdot, onChange: ev => setCustomVdot(ev.target.value), className: 'bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white outline-none' }),
-            e('button', { type: 'submit', className: 'bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-2 rounded-lg' }, 'Add Athlete')
-          )
-        )
-      );
+    function startAll() {
+      const now = Date.now();
+      isRunning = true;
+      athletes.forEach(a => {
+        a.status = 'running';
+        a.start = now;
+        a.current = 0;
+      });
+      loop();
     }
 
-   ReactDOM.render(e(App), document.getElementById('root'));
+    function stopAthlete(id) {
+      const now = Date.now();
+      const a = athletes.find(x => x.id === id);
+      if (a && a.status === 'running') {
+        a.splits.push(a.current);
+        a.status = 'resting';
+        a.restStart = now;
+        a.restCurrent = 0;
+        render();
+      }
+    }
+
+    function nextRep(id) {
+      const now = Date.now();
+      const a = athletes.find(x => x.id === id);
+      if (a && a.status === 'resting') {
+        a.status = 'running';
+        a.start = now;
+        a.current = 0;
+        render();
+      }
+    }
+
+    function resetAll() {
+      isRunning = false;
+      cancelAnimationFrame(animFrame);
+      athletes.forEach(a => {
+        a.status = 'idle';
+        a.splits = [];
+        a.current = 0;
+        a.restCurrent = 0;
+      });
+      render();
+    }
+
+    function loop() {
+      if (!isRunning) return;
+      const now = Date.now();
+      athletes.forEach(a => {
+        if (a.status === 'running') a.current = (now - a.start) / 1000;
+        if (a.status === 'resting') a.restCurrent = (now - a.restStart) / 1000;
+      });
+      updateDisplays();
+      animFrame = requestAnimationFrame(loop);
+    }
+
+    function updateDisplays() {
+      athletes.forEach(a => {
+        const timeEl = document.getElementById(`time-${a.id}`);
+        const restEl = document.getElementById(`rest-${a.id}`);
+        if (timeEl && a.status === 'running') timeEl.innerText = formatTime(a.current);
+        if (restEl && a.status === 'resting') restEl.innerText = formatTime(a.restCurrent);
+      });
+    }
+
+    function render() {
+      const container = document.getElementById('roster');
+      const dist = Number(document.getElementById('cfg-dist').value) || 800;
+      const totalReps = Number(document.getElementById('cfg-reps').value) || 5;
+
+      container.innerHTML = athletes.map(a => {
+        const targetSecs = calcTarget(a.vdot, dist, currentMode);
+        const repNum = a.splits.length + 1;
+
+        return `
+          <div class="runner-card ${a.status}">
+            <div class="runner-header">
+              <div class="runner-name">${a.name}</div>
+              <div class="runner-vdot">VDOT: <b>${a.vdot}</b> | Target: <b>${formatTime(targetSecs)}</b></div>
+            </div>
+
+            <div class="timer-display">
+              <div>
+                <div style="font-size: 0.65rem; color: var(--subtext); text-transform: uppercase;">Rep ${Math.min(repNum, totalReps)} / ${totalReps}</div>
+                <div class="time-val" id="time-${a.id}">${a.status === 'running' ? formatTime(a.current) : formatTime(a.splits[a.splits.length - 1])}</div>
+              </div>
+              ${a.status === 'resting' ? `
+                <div>
+                  <div style="font-size: 0.65rem; color: var(--warning); text-transform: uppercase; text-align: right;">Resting</div>
+                  <div class="resting-val" id="rest-${a.id}">${formatTime(a.restCurrent)}</div>
+                </div>
+              ` : ''}
+            </div>
+
+            ${a.status === 'running' ? `<button class="btn btn-danger btn-big" onclick="stopAthlete(${a.id})">STOP REP ${repNum}</button>` : ''}
+            ${a.status === 'resting' ? `<button class="btn btn-success btn-big" onclick="nextRep(${a.id})">START REP ${repNum}</button>` : ''}
+
+            ${a.splits.length > 0 ? `
+              <div class="splits-list">
+                ${a.splits.map((s, i) => `<span class="split-chip">R${i+1}: ${formatTime(s)}</span>`).join('')}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function exportCSV() {
+      let csv = `Athlete,VDOT,Splits\n`;
+      athletes.forEach(a => {
+        csv += `"${a.name}",${a.vdot},"${a.splits.map(s => formatTime(s)).join(' | ')}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `XC_Workout_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+    }
+
+    render();
+  </script>
+</body>
+</html>
