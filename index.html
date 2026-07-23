@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>XC Multi-Timer & VDOT Dashboard</title>
+  <title>XC Multi-Timer & Universal VDOT Dashboard</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -29,10 +29,11 @@
       return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    function calculateVDOT(fiveKSeconds) {
-      if (!fiveKSeconds || fiveKSeconds <= 0) return 0;
-      const t = fiveKSeconds / 60;
-      const v = 5000 / t;
+    // Universal VDOT Calculator supporting any distance in meters
+    function calculateVDOT(raceSeconds, distanceMeters) {
+      if (!raceSeconds || raceSeconds <= 0 || !distanceMeters || distanceMeters <= 0) return 0;
+      const t = raceSeconds / 60; // time in minutes
+      const v = distanceMeters / t; // velocity in meters/min
       const vo2 = -4.60 + 0.182258 * v + 0.000104 * Math.pow(v, 2);
       const percentMax = 0.8 + 0.1894393 * Math.exp(-0.012778 * t) + 0.2989558 * Math.exp(-0.1932605 * t);
       return parseFloat((vo2 / percentMax).toFixed(1));
@@ -62,13 +63,14 @@
       const [targetRest, setTargetRest] = useState(120);
 
       const [athletes, setAthletes] = useState([
-        { id: '1', name: 'Alex M.', fiveKPR: '17:30', vdot: 57.8, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
-        { id: '2', name: 'Jordan T.', fiveKPR: '18:45', vdot: 53.2, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
-        { id: '3', name: 'Sam K.', fiveKPR: '16:15', vdot: 63.1, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 }
+        { id: '1', name: 'Alex M.', pbTime: '17:30', pbDistance: 5000, pbLabel: '5k', vdot: 57.8, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
+        { id: '2', name: 'Jordan T.', pbTime: '10:30', pbDistance: 3000, pbLabel: '3k', vdot: 53.6, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
+        { id: '3', name: 'Sam K.', pbTime: '02:55', pbDistance: 1000, pbLabel: '1k', vdot: 62.4, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 }
       ]);
 
       const [newAthleteName, setNewAthleteName] = useState('');
-      const [newAthlete5k, setNewAthlete5k] = useState('');
+      const [newAthleteTime, setNewAthleteTime] = useState('');
+      const [newAthletePbDist, setNewAthletePbDist] = useState(5000);
       const [customVdot, setCustomVdot] = useState('');
       const [isTimerRunning, setIsTimerRunning] = useState(false);
 
@@ -113,15 +115,19 @@
         let computedVdot = 50;
         if (customVdot && !isNaN(parseFloat(customVdot))) {
           computedVdot = parseFloat(customVdot);
-        } else if (newAthlete5k.trim()) {
-          const secs = parseTimeToSeconds(newAthlete5k);
-          if (secs > 0) computedVdot = calculateVDOT(secs);
+        } else if (newAthleteTime.trim()) {
+          const secs = parseTimeToSeconds(newAthleteTime);
+          if (secs > 0) computedVdot = calculateVDOT(secs, newAthletePbDist);
         }
+
+        const distanceLabels = { 1000: '1k', 1500: '1.5k', 3000: '3k', 5000: '5k', 10000: '10k' };
 
         const newEntry = {
           id: Date.now().toString(),
           name: newAthleteName.trim(),
-          fiveKPR: newAthlete5k.trim() || 'N/A',
+          pbTime: newAthleteTime.trim() || 'N/A',
+          pbDistance: newAthletePbDist,
+          pbLabel: distanceLabels[newAthletePbDist] || `${newAthletePbDist}m`,
           vdot: computedVdot,
           selected: true,
           splits: [],
@@ -134,7 +140,7 @@
 
         setAthletes(prev => [...prev, newEntry]);
         setNewAthleteName('');
-        setNewAthlete5k('');
+        setNewAthleteTime('');
         setCustomVdot('');
       };
 
@@ -174,12 +180,12 @@
       };
 
       const handleExportCSV = () => {
-        let csvContent = `data:text/csv;charset=utf-8,Workout Mode: ${workoutType},Distance: ${distance}m\nAthlete,5K PR,VDOT`;
+        let csvContent = `data:text/csv;charset=utf-8,Workout Mode: ${workoutType},Distance: ${distance}m\nAthlete,PB Effort,VDOT`;
         for (let i = 1; i <= totalReps; i++) csvContent += `,Rep ${i} Split,Rep ${i} Rest`;
         csvContent += "\n";
 
         athletes.filter(a => a.selected).forEach(ath => {
-          let row = `"${ath.name}","${ath.fiveKPR}",${ath.vdot}`;
+          let row = `"${ath.name}","${ath.pbLabel}: ${ath.pbTime}",${ath.vdot}`;
           for (let i = 0; i < totalReps; i++) row += `,${formatTime(ath.splits[i] || 0)},${formatTime(ath.restTimes[i] || 0)}`;
           csvContent += row + "\n";
         });
@@ -200,7 +206,7 @@
           <div class="flex items-center justify-between border-b border-slate-800 pb-5 mb-6">
             <div>
               <h1 class="text-3xl font-black text-indigo-400 tracking-tight">XC Multi-Timer & VDOT Dashboard</h1>
-              <p class="text-slate-400 text-sm mt-1">Desktop Coaching Suite — Multi-Runner Workout Timing</p>
+              <p class="text-slate-400 text-sm mt-1">Desktop Coaching Suite — Universal Distance VDOT & Interval Tracker</p>
             </div>
             <div class="flex items-center gap-3">
               <button onClick={handleStartAll} class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg font-bold text-base shadow-md transition-colors">
@@ -231,29 +237,46 @@
                       required
                     />
                   </div>
+
                   <div class="grid grid-cols-2 gap-2">
                     <div>
-                      <label class="block text-xs text-slate-400 font-semibold mb-1">5K PR (mm:ss)</label>
-                      <input
-                        type="text"
-                        placeholder="18:30"
-                        value={newAthlete5k}
-                        onChange={e => setNewAthlete5k(e.target.value)}
-                        class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500"
-                      />
+                      <label class="block text-xs text-slate-400 font-semibold mb-1">PB Distance</label>
+                      <select
+                        value={newAthletePbDist}
+                        onChange={e => setNewAthletePbDist(Number(e.target.value))}
+                        class="w-full bg-slate-950 border border-slate-800 rounded-md px-2 py-2 text-white text-sm outline-none focus:border-indigo-500 font-semibold"
+                      >
+                        <option value={1000}>1,000m (1k)</option>
+                        <option value={1500}>1,500m (1.5k)</option>
+                        <option value={3000}>3,000m (3k)</option>
+                        <option value={5000}>5,000m (5k)</option>
+                        <option value={10000}>10,000m (10k)</option>
+                      </select>
                     </div>
                     <div>
-                      <label class="block text-xs text-slate-400 font-semibold mb-1">Manual VDOT</label>
+                      <label class="block text-xs text-slate-400 font-semibold mb-1">PB Time (mm:ss)</label>
                       <input
-                        type="number"
-                        step="0.1"
-                        placeholder="Optional"
-                        value={customVdot}
-                        onChange={e => setCustomVdot(e.target.value)}
+                        type="text"
+                        placeholder="09:45"
+                        value={newAthleteTime}
+                        onChange={e => setNewAthleteTime(e.target.value)}
                         class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500"
                       />
                     </div>
                   </div>
+
+                  <div>
+                    <label class="block text-xs text-slate-400 font-semibold mb-1">Manual VDOT (Override)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      placeholder="Optional"
+                      value={customVdot}
+                      onChange={e => setCustomVdot(e.target.value)}
+                      class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
                   <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-md text-sm transition-colors shadow-md">
                     + Add Athlete Now
                   </button>
@@ -313,7 +336,7 @@
                           <span>{ath.name}</span>
                         </label>
                         <div class="flex items-center gap-3">
-                          <span class="text-xs font-mono text-slate-400">VDOT {ath.vdot}</span>
+                          <span class="text-xs font-mono text-slate-400">({ath.pbLabel}: {ath.pbTime}) VDOT {ath.vdot}</span>
                           <button onClick={() => handleDeleteAthlete(ath.id)} class="text-slate-600 hover:text-rose-400 text-xs px-1" title="Remove Athlete">✕</button>
                         </div>
                       </div>
@@ -342,7 +365,7 @@
                         <div class="flex justify-between items-start mb-3">
                           <div>
                             <h3 class="font-bold text-xl text-slate-100">{ath.name}</h3>
-                            <div class="text-xs text-slate-400 mt-0.5">VDOT: <span class="font-bold text-indigo-400">{ath.vdot}</span> | 5K: {ath.fiveKPR}</div>
+                            <div class="text-xs text-slate-400 mt-0.5">VDOT: <span class="font-bold text-indigo-400">{ath.vdot}</span> | {ath.pbLabel} PB: {ath.pbTime}</div>
                           </div>
                           <span class="text-xs font-bold px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-300">
                             Rep {Math.min(currentRepNumber, totalReps)} / {totalReps}
