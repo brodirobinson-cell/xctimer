@@ -4,15 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>XC Multi-Timer & Multi-Workout VDOT Tracker</title>
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Production React Builds -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Fast Minified Tailwind CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen">
+<body class="bg-gray-900 text-gray-100 min-h-screen">
   <div id="root"></div>
 
-  <script type="text/babel">
+  <script>
+    const e = React.createElement;
     const { useState, useEffect } = React;
 
     // --- TIME & PACING CALCULATIONS ---
@@ -39,12 +41,11 @@
       return (vo2 / percentMax).toFixed(1);
     }
 
-    // Daniels Zone Intensity Multipliers relative to VO2max
     const ZONE_INTENSITY = {
-      EASY: 0.70,      // ~70% VO2max
-      TEMPO: 0.88,     // ~88% VO2max (Threshold)
-      INTERVAL: 0.98,  // ~98% VO2max (3K-5K Pace)
-      REP: 1.08        // ~108% VO2max (800m-1500m Pace)
+      EASY: 0.70,
+      TEMPO: 0.88,
+      INTERVAL: 0.98,
+      REP: 1.08
     };
 
     function calculateZoneTargetSplit(vdot, distanceMeters, zoneKey) {
@@ -52,13 +53,13 @@
       const intensity = ZONE_INTENSITY[zoneKey] || 0.98;
       const targetVO2 = vdot * intensity;
       const a = 0.000104, b = 0.182258, c = -(4.60 + targetVO2);
-      const v = (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a); // meters per minute
+      const v = (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
       const pacePerMeter = 1 / v;
-      return (pacePerMeter * distanceMeters * 60); // split time in seconds
+      return (pacePerMeter * distanceMeters * 60);
     }
 
     function App() {
-      const [workoutType, setWorkoutType] = useState('INTERVAL'); // EASY, TEMPO, INTERVAL, REP
+      const [workoutType, setWorkoutType] = useState('INTERVAL');
       const [distance, setDistance] = useState(800);
       const [totalReps, setTotalReps] = useState(5);
       const [targetRest, setTargetRest] = useState(120);
@@ -74,7 +75,6 @@
       const [customVdot, setCustomVdot] = useState('');
       const [isTimerRunning, setIsTimerRunning] = useState(false);
 
-      // Adjust default setup values when switching workout modes
       const handleWorkoutTypeChange = (mode) => {
         setWorkoutType(mode);
         if (mode === 'EASY') { setDistance(5000); setTotalReps(1); setTargetRest(0); }
@@ -140,8 +140,8 @@
         setAthletes(prev => prev.map(ath => ({ ...ath, status: 'idle', splits: [], restTimes: [], currentSplit: 0, currentRest: 0 })));
       };
 
-      const handleAddAthlete = (e) => {
-        e.preventDefault();
+      const handleAddAthlete = (ev) => {
+        ev.preventDefault();
         if (!newAthleteName) return;
         let computedVdot = customVdot ? parseFloat(customVdot) : calculateVDOT(parseTimeToSeconds(newAthlete5k));
         setAthletes([...athletes, {
@@ -175,146 +175,133 @@
 
       const activeAthletes = athletes.filter(a => a.selected);
 
-      return (
-        <div class="max-w-7xl mx-auto p-4 sm:p-6">
-          {/* Header */}
-          <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-700 pb-4 mb-6 gap-4">
-            <div>
-              <h1 class="text-3xl font-extrabold text-indigo-400 tracking-tight">XC Workout & Multi-Timer</h1>
-              <p class="text-slate-400 text-sm">Jack Daniels VDOT Pace Generator for Easy, Tempo, Interval & Speed Workouts</p>
-            </div>
-            <div class="flex gap-2">
-              <button onClick={handleStartAll} class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg">
-                ▶ START ALL ({activeAthletes.length})
-              </button>
-              <button onClick={handleResetAll} class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2.5 rounded-lg font-semibold">Reset</button>
-              <button onClick={handleExportCSV} class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg font-semibold">Export CSV</button>
-            </div>
-          </div>
+      return e('div', { className: 'max-w-7xl mx-auto p-4 sm:p-6' },
+        // Header
+        e('div', { className: 'flex flex-col md:flex-row md:items-center justify-between border-b border-gray-700 pb-4 mb-6 gap-4' },
+          e('div', null,
+            e('h1', { className: 'text-3xl font-extrabold text-indigo-400 tracking-tight' }, 'XC Workout & Multi-Timer'),
+            e('p', { className: 'text-gray-400 text-sm' }, 'Jack Daniels VDOT Pace Generator for Easy, Tempo, Interval & Speed Workouts')
+          ),
+          e('div', { className: 'flex gap-2' },
+            e('button', { onClick: handleStartAll, className: 'bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg' }, `▶ START ALL (${activeAthletes.length})`),
+            e('button', { onClick: handleResetAll, className: 'bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-2.5 rounded-lg font-semibold' }, 'Reset'),
+            e('button', { onClick: handleExportCSV, className: 'bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg font-semibold' }, 'Export CSV')
+          )
+        ),
 
-          {/* Workout Mode Selector */}
-          <div class="bg-slate-800 p-4 rounded-xl mb-6 border border-slate-700">
-            <label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Select Workout Mode</label>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {[
-                { key: 'EASY', label: 'Easy / Recovery', desc: 'Continuous aerobic pace' },
-                { key: 'TEMPO', label: 'Tempo / Threshold', desc: 'Lactate threshold work' },
-                { key: 'INTERVAL', label: 'Intervals (VO2max)', desc: '3k-5k race pace reps' },
-                { key: 'REP', label: 'Speed Repetitions', desc: 'Shorter, fast economy reps' }
-              ].map(mode => (
-                <button
-                  key={mode.key}
-                  onClick={() => handleWorkoutTypeChange(mode.key)}
-                  class={`p-3 rounded-lg border text-left transition-all ${workoutType === mode.key ? 'bg-indigo-600 border-indigo-400 text-white font-bold' : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'}`}
-                >
-                  <div class="text-sm font-bold">{mode.label}</div>
-                  <div class="text-xs opacity-75">{mode.desc}</div>
-                </button>
-              ))}
-            </div>
+        // Workout Mode Selector
+        e('div', { className: 'bg-gray-800 p-4 rounded-xl mb-6 border border-gray-700' },
+          e('label', { className: 'block text-xs font-semibold uppercase text-gray-400 mb-2' }, 'Select Workout Mode'),
+          e('div', { className: 'grid grid-cols-2 md:grid-cols-4 gap-2' },
+            [
+              { key: 'EASY', label: 'Easy / Recovery', desc: 'Continuous aerobic pace' },
+              { key: 'TEMPO', label: 'Tempo / Threshold', desc: 'Lactate threshold work' },
+              { key: 'INTERVAL', label: 'Intervals (VO2max)', desc: '3k-5k race pace reps' },
+              { key: 'REP', label: 'Speed Repetitions', desc: 'Shorter, fast economy reps' }
+            ].map(mode =>
+              e('button', {
+                key: mode.key,
+                onClick: () => handleWorkoutTypeChange(mode.key),
+                className: `p-3 rounded-lg border text-left transition-all ${workoutType === mode.key ? 'bg-indigo-600 border-indigo-400 text-white font-bold' : 'bg-gray-900 border-gray-700 text-gray-300 hover:bg-gray-800'}`
+              },
+                e('div', { className: 'text-sm font-bold' }, mode.label),
+                e('div', { className: 'text-xs opacity-75' }, mode.desc)
+              )
+            )
+          ),
 
-            {/* Parameter Inputs */}
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-700/60">
-              <div>
-                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Distance (Meters)</label>
-                <input type="number" value={distance} onChange={e => setDistance(Number(e.target.value))} class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono outline-none" />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Reps</label>
-                <input type="number" value={totalReps} onChange={e => setTotalReps(Number(e.target.value))} class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono outline-none" />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Target Rest (Secs)</label>
-                <input type="number" value={targetRest} onChange={e => setTargetRest(Number(e.target.value))} class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono outline-none" />
-              </div>
-            </div>
-          </div>
+          // Parameter Inputs
+          e('div', { className: 'grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-700' },
+            e('div', null,
+              e('label', { className: 'block text-xs font-semibold uppercase text-gray-400 mb-1' }, 'Distance (Meters)'),
+              e('input', { type: 'number', value: distance, onChange: ev => setDistance(Number(ev.target.value)), className: 'w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono outline-none' })
+            ),
+            e('div', null,
+              e('label', { className: 'block text-xs font-semibold uppercase text-gray-400 mb-1' }, 'Reps'),
+              e('input', { type: 'number', value: totalReps, onChange: ev => setTotalReps(Number(ev.target.value)), className: 'w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono outline-none' })
+            ),
+            e('div', null,
+              e('label', { className: 'block text-xs font-semibold uppercase text-gray-400 mb-1' }, 'Target Rest (Secs)'),
+              e('input', { type: 'number', value: targetRest, onChange: ev => setTargetRest(Number(ev.target.value)), className: 'w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white font-mono outline-none' })
+            )
+          )
+        ),
 
-          {/* Roster Checkboxes */}
-          <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-6">
-            <h2 class="text-md font-bold text-slate-200 mb-2">Participating Athletes</h2>
-            <div class="flex flex-wrap gap-2">
-              {athletes.map(ath => (
-                <label key={ath.id} class={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition-all ${ath.selected ? 'bg-indigo-950/60 border-indigo-500 text-indigo-200 font-semibold' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
-                  <input type="checkbox" checked={ath.selected} onChange={() => toggleAthleteSelection(ath.id)} class="rounded border-slate-700 text-indigo-600 h-4 w-4" />
-                  <span>{ath.name}</span>
-                  <span class="text-xs opacity-60">({ath.vdot} VDOT)</span>
-                </label>
-              ))}
-            </div>
-          </div>
+        // Roster Selection
+        e('div', { className: 'bg-gray-800 p-4 rounded-xl border border-gray-700 mb-6' },
+          e('h2', { className: 'text-md font-bold text-gray-200 mb-2' }, 'Participating Athletes'),
+          e('div', { className: 'flex flex-wrap gap-2' },
+            athletes.map(ath =>
+              e('label', { key: ath.id, className: `flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition-all ${ath.selected ? 'bg-indigo-950 border-indigo-500 text-indigo-200 font-semibold' : 'bg-gray-900 border-gray-700 text-gray-400'}` },
+                e('input', { type: 'checkbox', checked: ath.selected, onChange: () => toggleAthleteSelection(ath.id), className: 'rounded border-gray-700 text-indigo-600 h-4 w-4' }),
+                e('span', null, ath.name),
+                e('span', { className: 'text-xs opacity-60' }, `(${ath.vdot} VDOT)`)
+              )
+            )
+          )
+        ),
 
-          {/* Active Timer Grid */}
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            {activeAthletes.map(ath => {
-              const targetSplitSecs = calculateZoneTargetSplit(ath.vdot, distance, workoutType);
-              const currentRepNumber = ath.splits.length + 1;
+        // Active Timer Grid
+        e('div', { className: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8' },
+          activeAthletes.map(ath => {
+            const targetSplitSecs = calculateZoneTargetSplit(ath.vdot, distance, workoutType);
+            const currentRepNumber = ath.splits.length + 1;
 
-              return (
-                <div key={ath.id} class={`p-5 rounded-xl border ${ath.status === 'running' ? 'bg-slate-800 border-emerald-500 shadow-lg' : ath.status === 'resting' ? 'bg-slate-800 border-amber-500' : 'bg-slate-800/80 border-slate-700'}`}>
-                  <div class="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 class="font-bold text-lg text-slate-100">{ath.name}</h3>
-                      <p class="text-xs text-slate-400">VDOT: <span class="font-semibold text-indigo-400">{ath.vdot}</span> | 5K: {ath.fiveKPR}</p>
-                    </div>
-                    <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-900 text-slate-300">
-                      Rep {Math.min(currentRepNumber, totalReps)} / {totalReps}
-                    </span>
-                  </div>
+            return e('div', { key: ath.id, className: `p-5 rounded-xl border ${ath.status === 'running' ? 'bg-gray-800 border-emerald-500 shadow-lg' : ath.status === 'resting' ? 'bg-gray-800 border-amber-500' : 'bg-gray-800 border-gray-700'}` },
+              e('div', { className: 'flex justify-between items-start mb-2' },
+                e('div', null,
+                  e('h3', { className: 'font-bold text-lg text-gray-100' }, ath.name),
+                  e('p', { className: 'text-xs text-gray-400' }, 'VDOT: ', e('span', { className: 'font-semibold text-indigo-400' }, ath.vdot), ` | 5K: ${ath.fiveKPR}`)
+                ),
+                e('span', { className: 'text-xs font-bold px-2.5 py-1 rounded-full bg-gray-900 text-gray-300' }, `Rep ${Math.min(currentRepNumber, totalReps)} / ${totalReps}`)
+              ),
 
-                  <div class="my-4 bg-slate-900 p-3 rounded-lg border border-slate-800">
-                    <div class="text-xs text-slate-400 flex justify-between mb-1">
-                      <span>Target ({workoutType}):</span>
-                      <span class="font-mono text-indigo-300 font-semibold">{formatTime(targetSplitSecs)}</span>
-                    </div>
+              e('div', { className: 'my-4 bg-gray-900 p-3 rounded-lg border border-gray-800' },
+                e('div', { className: 'text-xs text-gray-400 flex justify-between mb-1' },
+                  e('span', null, `Target (${workoutType}):`),
+                  e('span', { className: 'font-mono text-indigo-300 font-semibold' }, formatTime(targetSplitSecs))
+                ),
+                e('div', { className: 'flex justify-between items-baseline mt-2' },
+                  e('div', null,
+                    e('div', { className: 'text-xs text-gray-500 uppercase font-semibold' }, 'Rep Time'),
+                    e('div', { className: `text-3xl font-mono font-extrabold ${ath.status === 'running' ? 'text-emerald-400' : 'text-gray-200'}` },
+                      ath.status === 'running' ? formatTime(ath.currentSplit) : formatTime(ath.splits[ath.splits.length - 1] || 0)
+                    )
+                  ),
+                  ath.status === 'resting' && e('div', { className: 'text-right' },
+                    e('div', { className: 'text-xs text-amber-400 uppercase font-semibold' }, 'Resting'),
+                    e('div', { className: 'text-2xl font-mono font-bold text-amber-300' }, formatTime(ath.currentRest))
+                  )
+                )
+              ),
 
-                    <div class="flex justify-between items-baseline mt-2">
-                      <div>
-                        <div class="text-xs text-slate-500 uppercase font-semibold">Rep Time</div>
-                        <div class={`text-3xl font-mono font-extrabold ${ath.status === 'running' ? 'text-emerald-400' : 'text-slate-200'}`}>
-                          {ath.status === 'running' ? formatTime(ath.currentSplit) : formatTime(ath.splits[ath.splits.length - 1] || 0)}
-                        </div>
-                      </div>
+              e('div', null,
+                ath.status === 'running' && e('button', { onClick: () => handleStopIndividual(ath.id), className: 'w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg text-lg' }, `STOP REP ${currentRepNumber}`),
+                ath.status === 'resting' && e('button', { onClick: () => handleStartNextRep(ath.id), className: 'w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg' }, `START REP ${currentRepNumber}`)
+              ),
 
-                      {ath.status === 'resting' && (
-                        <div class="text-right">
-                          <div class="text-xs text-amber-400 uppercase font-semibold">Resting</div>
-                          <div class="text-2xl font-mono font-bold text-amber-300">{formatTime(ath.currentRest)}</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+              ath.splits.length > 0 && e('div', { className: 'mt-4 pt-3 border-t border-gray-700 flex flex-wrap gap-1.5' },
+                ath.splits.map((s, i) => e('span', { key: i, className: 'text-xs font-mono px-2 py-0.5 rounded bg-gray-900 text-indigo-300' }, `R${i+1}: ${formatTime(s)}`))
+              )
+            );
+          })
+        ),
 
-                  <div>
-                    {ath.status === 'running' && <button onClick={() => handleStopIndividual(ath.id)} class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-lg text-lg">STOP REP {currentRepNumber}</button>}
-                    {ath.status === 'resting' && <button onClick={() => handleStartNextRep(ath.id)} class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg">START REP {currentRepNumber}</button>}
-                  </div>
-
-                  {ath.splits.length > 0 && (
-                    <div class="mt-4 pt-3 border-t border-slate-700/60 flex flex-wrap gap-1.5">
-                      {ath.splits.map((s, i) => <span key={i} class="text-xs font-mono px-2 py-0.5 rounded bg-slate-900 text-indigo-300">R{i+1}: {formatTime(s)}</span>)}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Add Athlete Form */}
-          <div class="bg-slate-800 p-5 rounded-xl border border-slate-700">
-            <h2 class="text-lg font-bold text-slate-200 mb-3">Add New Athlete</h2>
-            <form onSubmit={handleAddAthlete} class="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <input type="text" placeholder="Name" value={newAthleteName} onChange={e => setNewAthleteName(e.target.value)} class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none" />
-              <input type="text" placeholder="5K PR (e.g. 18:30)" value={newAthlete5k} onChange={e => setNewAthlete5k(e.target.value)} class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none" />
-              <input type="number" step="0.1" placeholder="Manual VDOT (Optional)" value={customVdot} onChange={e => setCustomVdot(e.target.value)} class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none" />
-              <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-2 rounded-lg">Add Athlete</button>
-            </form>
-          </div>
-        </div>
+        // Add Athlete Form
+        e('div', { className: 'bg-gray-800 p-5 rounded-xl border border-gray-700' },
+          e('h2', { className: 'text-lg font-bold text-gray-200 mb-3' }, 'Add New Athlete'),
+          e('form', { onSubmit: handleAddAthlete, className: 'grid grid-cols-1 md:grid-cols-4 gap-3' },
+            e('input', { type: 'text', placeholder: 'Name', value: newAthleteName, onChange: ev => setNewAthleteName(ev.target.value), className: 'bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white outline-none' }),
+            e('input', { type: 'text', placeholder: '5K PR (e.g. 18:30)', value: newAthlete5k, onChange: ev => setNewAthlete5k(ev.target.value), className: 'bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white outline-none' }),
+            e('input', { type: 'number', step: '0.1', placeholder: 'Manual VDOT (Optional)', value: customVdot, onChange: ev => setCustomVdot(ev.target.value), className: 'bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white outline-none' }),
+            e('button', { type: 'submit', className: 'bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-2 rounded-lg' }, 'Add Athlete')
+          )
+        )
       );
     }
 
-    ReactDOM.render(<App />, document.getElementById('root'));
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(e(App));
   </script>
 </body>
 </html>
