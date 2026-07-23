@@ -2,265 +2,312 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>XC Trackside Timer</title>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --card: #1e293b;
-      --accent: #6366f1;
-      --success: #10b981;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --text: #f8fafc;
-      --subtext: #94a3b8;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background-color: var(--bg); color: var(--text); padding: 12px; padding-bottom: 40px; }
-    
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #334155; }
-    h1 { font-size: 1.25rem; font-weight: 800; color: #818cf8; }
-    
-    .btn { background: var(--accent); color: white; border: none; padding: 10px 14px; font-weight: 700; border-radius: 8px; font-size: 0.9rem; cursor: pointer; }
-    .btn-success { background: var(--success); }
-    .btn-danger { background: var(--danger); }
-    .btn-reset { background: #334155; color: var(--subtext); }
-    .btn-big { width: 100%; padding: 16px; font-size: 1.2rem; border-radius: 12px; text-transform: uppercase; tracking: 1px; }
-
-    .modes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
-    .mode-btn { background: var(--card); border: 1px solid #334155; padding: 10px; border-radius: 8px; color: var(--subtext); text-align: left; cursor: pointer; }
-    .mode-btn.active { border-color: var(--accent); background: #312e81; color: white; font-weight: bold; }
-    .mode-btn div:first-child { font-size: 0.85rem; }
-    .mode-btn div:last-child { font-size: 0.7rem; opacity: 0.7; }
-
-    .params { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; background: var(--card); padding: 10px; border-radius: 8px; margin-bottom: 16px; }
-    .param-box label { display: block; font-size: 0.65rem; color: var(--subtext); text-transform: uppercase; margin-bottom: 4px; }
-    .param-box input { width: 100%; background: #0f172a; border: 1px solid #334155; color: white; padding: 6px; border-radius: 6px; font-family: monospace; font-size: 0.9rem; }
-
-    .runner-card { background: var(--card); border: 2px solid #334155; border-radius: 14px; padding: 14px; margin-bottom: 12px; }
-    .runner-card.running { border-color: var(--success); }
-    .runner-card.resting { border-color: var(--warning); }
-    
-    .runner-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
-    .runner-name { font-size: 1.1rem; font-weight: 700; }
-    .runner-vdot { font-size: 0.75rem; color: var(--subtext); }
-
-    .timer-display { background: #0f172a; border-radius: 8px; padding: 12px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; }
-    .time-val { font-family: monospace; font-size: 2.2rem; font-weight: 800; }
-    .running .time-val { color: var(--success); }
-    .resting-val { font-family: monospace; font-size: 1.4rem; color: var(--warning); text-align: right; }
-
-    .splits-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; font-family: monospace; font-size: 0.75rem; color: #a5b4fc; }
-    .split-chip { background: #0f172a; padding: 2px 6px; border-radius: 4px; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XC Multi-Timer & Multi-Workout VDOT Tracker</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+  <div id="root"></div>
 
-  <header>
-    <h1>XC Trackside Timer</h1>
-    <div>
-      <button class="btn btn-reset" onclick="resetAll()">Reset</button>
-      <button class="btn" onclick="exportCSV()">CSV</button>
-    </div>
-  </header>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
 
-  <!-- Workout Mode -->
-  <div class="modes">
-    <button class="mode-btn active" id="btn-INTERVAL" onclick="setMode('INTERVAL')">
-      <div>Intervals</div><div>VO2max (3k-5k)</div>
-    </button>
-    <button class="mode-btn" id="btn-TEMPO" onclick="setMode('TEMPO')">
-      <div>Tempo</div><div>Threshold Work</div>
-    </button>
-    <button class="mode-btn" id="btn-REP" onclick="setMode('REP')">
-      <div>Speed Reps</div><div>Economy / Speed</div>
-    </button>
-    <button class="mode-btn" id="btn-EASY" onclick="setMode('EASY')">
-      <div>Easy / Recovery</div><div>Continuous Run</div>
-    </button>
-  </div>
-
-  <!-- Parameters -->
-  <div class="params">
-    <div class="param-box">
-      <label>Distance (m)</label>
-      <input type="number" id="cfg-dist" value="800" onchange="render()">
-    </div>
-    <div class="param-box">
-      <label>Reps</label>
-      <input type="number" id="cfg-reps" value="5">
-    </div>
-    <div class="param-box">
-      <label>Rest (s)</label>
-      <input type="number" id="cfg-rest" value="120">
-    </div>
-  </div>
-
-  <button class="btn btn-success btn-big" style="margin-bottom: 16px;" onclick="startAll()">▶ START ALL RUNNERS</button>
-
-  <div id="roster"></div>
-
-  <script>
-    let currentMode = 'INTERVAL';
-    let isRunning = false;
-    let animFrame;
-
-    const INTENSITY = { EASY: 0.70, TEMPO: 0.88, INTERVAL: 0.98, REP: 1.08 };
-
-    let athletes = [
-      { id: 1, name: 'Alex M.', vdot: 57.8, status: 'idle', splits: [], start: 0, current: 0, restStart: 0, restCurrent: 0 },
-      { id: 2, name: 'Jordan T.', vdot: 53.2, status: 'idle', splits: [], start: 0, current: 0, restStart: 0, restCurrent: 0 },
-      { id: 3, name: 'Sam K.', vdot: 63.1, status: 'idle', splits: [], start: 0, current: 0, restStart: 0, restCurrent: 0 }
-    ];
-
-    function setMode(mode) {
-      currentMode = mode;
-      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-      document.getElementById(`btn-${mode}`).classList.add('active');
-      
-      if(mode === 'EASY') { document.getElementById('cfg-dist').value = 5000; document.getElementById('cfg-reps').value = 1; }
-      if(mode === 'TEMPO') { document.getElementById('cfg-dist').value = 1600; document.getElementById('cfg-reps').value = 3; }
-      if(mode === 'INTERVAL') { document.getElementById('cfg-dist').value = 800; document.getElementById('cfg-reps').value = 5; }
-      if(mode === 'REP') { document.getElementById('cfg-dist').value = 400; document.getElementById('cfg-reps').value = 8; }
-      render();
+    function parseTimeToSeconds(timeStr) {
+      if (!timeStr) return 0;
+      const parts = timeStr.trim().split(':');
+      if (parts.length === 2) return parseInt(parts[0], 10) * 60 + parseFloat(parts[1]);
+      return parseFloat(timeStr) || 0;
     }
 
-    function formatTime(s) {
-      if (!s || s <= 0) return "00:00.0";
-      const m = Math.floor(s / 60);
-      const secs = (s % 60).toFixed(1);
-      return `${m}:${secs < 10 ? '0' : ''}${secs}`;
+    function formatTime(seconds) {
+      if (!seconds || isNaN(seconds) || seconds <= 0) return "00:00.0";
+      const mins = Math.floor(seconds / 60);
+      const secs = (seconds % 60).toFixed(1);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    function calcTarget(vdot, meters, mode) {
-      if (!vdot) return 0;
-      const targetVO2 = vdot * (INTENSITY[mode] || 0.98);
+    function calculateVDOT(fiveKSeconds) {
+      if (!fiveKSeconds || fiveKSeconds <= 0) return 0;
+      const t = fiveKSeconds / 60;
+      const v = 5000 / t;
+      const vo2 = -4.60 + 0.182258 * v + 0.000104 * Math.pow(v, 2);
+      const percentMax = 0.8 + 0.1894393 * Math.exp(-0.012778 * t) + 0.2989558 * Math.exp(-0.1932605 * t);
+      return (vo2 / percentMax).toFixed(1);
+    }
+
+    const ZONE_INTENSITY = {
+      EASY: 0.70,
+      TEMPO: 0.88,
+      INTERVAL: 0.98,
+      REP: 1.08
+    };
+
+    function calculateZoneTargetSplit(vdot, distanceMeters, zoneKey) {
+      if (!vdot || vdot <= 0) return 0;
+      const intensity = ZONE_INTENSITY[zoneKey] || 0.98;
+      const targetVO2 = vdot * intensity;
       const a = 0.000104, b = 0.182258, c = -(4.60 + targetVO2);
       const v = (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a);
-      return (1 / v) * meters * 60;
+      const pacePerMeter = 1 / v;
+      return (pacePerMeter * distanceMeters * 60);
     }
 
-    function startAll() {
-      const now = Date.now();
-      isRunning = true;
-      athletes.forEach(a => {
-        a.status = 'running';
-        a.start = now;
-        a.current = 0;
-      });
-      loop();
-    }
+    function App() {
+      const [workoutType, setWorkoutType] = useState('INTERVAL');
+      const [distance, setDistance] = useState(800);
+      const [totalReps, setTotalReps] = useState(5);
+      const [targetRest, setTargetRest] = useState(120);
 
-    function stopAthlete(id) {
-      const now = Date.now();
-      const a = athletes.find(x => x.id === id);
-      if (a && a.status === 'running') {
-        a.splits.push(a.current);
-        a.status = 'resting';
-        a.restStart = now;
-        a.restCurrent = 0;
-        render();
-      }
-    }
+      const [athletes, setAthletes] = useState([
+        { id: '1', name: 'Alex M.', fiveKPR: '17:30', vdot: 57.8, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
+        { id: '2', name: 'Jordan T.', fiveKPR: '18:45', vdot: 53.2, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
+        { id: '3', name: 'Sam K.', fiveKPR: '16:15', vdot: 63.1, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 }
+      ]);
 
-    function nextRep(id) {
-      const now = Date.now();
-      const a = athletes.find(x => x.id === id);
-      if (a && a.status === 'resting') {
-        a.status = 'running';
-        a.start = now;
-        a.current = 0;
-        render();
-      }
-    }
+      const [newAthleteName, setNewAthleteName] = useState('');
+      const [newAthlete5k, setNewAthlete5k] = useState('');
+      const [customVdot, setCustomVdot] = useState('');
+      const [isTimerRunning, setIsTimerRunning] = useState(false);
 
-    function resetAll() {
-      isRunning = false;
-      cancelAnimationFrame(animFrame);
-      athletes.forEach(a => {
-        a.status = 'idle';
-        a.splits = [];
-        a.current = 0;
-        a.restCurrent = 0;
-      });
-      render();
-    }
+      const handleWorkoutTypeChange = (mode) => {
+        setWorkoutType(mode);
+        if (mode === 'EASY') { setDistance(5000); setTotalReps(1); setTargetRest(0); }
+        else if (mode === 'TEMPO') { setDistance(1600); setTotalReps(3); setTargetRest(60); }
+        else if (mode === 'INTERVAL') { setDistance(800); setTotalReps(5); setTargetRest(120); }
+        else if (mode === 'REP') { setDistance(400); setTotalReps(8); setTargetRest(180); }
+      };
 
-    function loop() {
-      if (!isRunning) return;
-      const now = Date.now();
-      athletes.forEach(a => {
-        if (a.status === 'running') a.current = (now - a.start) / 1000;
-        if (a.status === 'resting') a.restCurrent = (now - a.restStart) / 1000;
-      });
-      updateDisplays();
-      animFrame = requestAnimationFrame(loop);
-    }
+      useEffect(() => {
+        let animationFrameId;
+        const updateTimers = () => {
+          const now = Date.now();
+          setAthletes(prevAthletes =>
+            prevAthletes.map(ath => {
+              if (!ath.selected) return ath;
+              if (ath.status === 'running') {
+                return { ...ath, currentSplit: (now - ath.startTime) / 1000 };
+              } else if (ath.status === 'resting') {
+                return { ...ath, currentRest: (now - ath.restStartTime) / 1000 };
+              }
+              return ath;
+            })
+          );
+          if (isTimerRunning) animationFrameId = requestAnimationFrame(updateTimers);
+        };
 
-    function updateDisplays() {
-      athletes.forEach(a => {
-        const timeEl = document.getElementById(`time-${a.id}`);
-        const restEl = document.getElementById(`rest-${a.id}`);
-        if (timeEl && a.status === 'running') timeEl.innerText = formatTime(a.current);
-        if (restEl && a.status === 'resting') restEl.innerText = formatTime(a.restCurrent);
-      });
-    }
+        if (isTimerRunning) animationFrameId = requestAnimationFrame(updateTimers);
+        return () => cancelAnimationFrame(animationFrameId);
+      }, [isTimerRunning]);
 
-    function render() {
-      const container = document.getElementById('roster');
-      const dist = Number(document.getElementById('cfg-dist').value) || 800;
-      const totalReps = Number(document.getElementById('cfg-reps').value) || 5;
+      const toggleAthleteSelection = (id) => {
+        setAthletes(prev => prev.map(ath => ath.id === id ? { ...ath, selected: !ath.selected } : ath));
+      };
 
-      container.innerHTML = athletes.map(a => {
-        const targetSecs = calcTarget(a.vdot, dist, currentMode);
-        const repNum = a.splits.length + 1;
+      const handleStartAll = () => {
+        const now = Date.now();
+        setIsTimerRunning(true);
+        setAthletes(prev => prev.map(ath => ath.selected ? { ...ath, status: 'running', startTime: now, currentSplit: 0 } : ath));
+      };
 
-        return `
-          <div class="runner-card ${a.status}">
-            <div class="runner-header">
-              <div class="runner-name">${a.name}</div>
-              <div class="runner-vdot">VDOT: <b>${a.vdot}</b> | Target: <b>${formatTime(targetSecs)}</b></div>
+      const handleStopIndividual = (id) => {
+        const now = Date.now();
+        setAthletes(prev => prev.map(ath => {
+          if (ath.id === id && ath.status === 'running') {
+            return { ...ath, status: 'resting', splits: [...ath.splits, ath.currentSplit], restStartTime: now, currentRest: 0 };
+          }
+          return ath;
+        }));
+      };
+
+      const handleStartNextRep = (id) => {
+        const now = Date.now();
+        setAthletes(prev => prev.map(ath => {
+          if (ath.id === id && ath.status === 'resting') {
+            return { ...ath, status: 'running', restTimes: [...ath.restTimes, ath.currentRest], startTime: now, currentSplit: 0 };
+          }
+          return ath;
+        }));
+      };
+
+      const handleResetAll = () => {
+        setIsTimerRunning(false);
+        setAthletes(prev => prev.map(ath => ({ ...ath, status: 'idle', splits: [], restTimes: [], currentSplit: 0, currentRest: 0 })));
+      };
+
+      const handleAddAthlete = (e) => {
+        e.preventDefault();
+        if (!newAthleteName) return;
+        let computedVdot = customVdot ? parseFloat(customVdot) : calculateVDOT(parseTimeToSeconds(newAthlete5k));
+        setAthletes([...athletes, {
+          id: Date.now().toString(),
+          name: newAthleteName,
+          fiveKPR: newAthlete5k || 'N/A',
+          vdot: computedVdot > 0 ? computedVdot : 50,
+          selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0
+        }]);
+        setNewAthleteName(''); setNewAthlete5k(''); setCustomVdot('');
+      };
+
+      const handleExportCSV = () => {
+        let csvContent = `data:text/csv;charset=utf-8,Workout Mode: ${workoutType},Distance: ${distance}m\nAthlete,5K PR,VDOT`;
+        for (let i = 1; i <= totalReps; i++) csvContent += `,Rep ${i} Split,Rep ${i} Rest`;
+        csvContent += "\n";
+
+        athletes.filter(a => a.selected).forEach(ath => {
+          let row = `"${ath.name}","${ath.fiveKPR}",${ath.vdot}`;
+          for (let i = 0; i < totalReps; i++) row += `,${formatTime(ath.splits[i] || 0)},${formatTime(ath.restTimes[i] || 0)}`;
+          csvContent += row + "\n";
+        });
+
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", `XC_${workoutType}_${distance}m_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
+      const activeAthletes = athletes.filter(a => a.selected);
+
+      return (
+        <div class="max-w-7xl mx-auto p-4 sm:p-6">
+          <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-700 pb-4 mb-6 gap-4">
+            <div>
+              <h1 class="text-3xl font-extrabold text-indigo-400 tracking-tight">XC Workout & Multi-Timer</h1>
+              <p class="text-slate-400 text-sm">Jack Daniels VDOT Pace Generator for Easy, Tempo, Interval & Speed Workouts</p>
             </div>
-
-            <div class="timer-display">
-              <div>
-                <div style="font-size: 0.65rem; color: var(--subtext); text-transform: uppercase;">Rep ${Math.min(repNum, totalReps)} / ${totalReps}</div>
-                <div class="time-val" id="time-${a.id}">${a.status === 'running' ? formatTime(a.current) : formatTime(a.splits[a.splits.length - 1])}</div>
-              </div>
-              ${a.status === 'resting' ? `
-                <div>
-                  <div style="font-size: 0.65rem; color: var(--warning); text-transform: uppercase; text-align: right;">Resting</div>
-                  <div class="resting-val" id="rest-${a.id}">${formatTime(a.restCurrent)}</div>
-                </div>
-              ` : ''}
+            <div class="flex gap-2">
+              <button onClick={handleStartAll} class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg">
+                ▶ START ALL ({activeAthletes.length})
+              </button>
+              <button onClick={handleResetAll} class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2.5 rounded-lg font-semibold">Reset</button>
+              <button onClick={handleExportCSV} class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg font-semibold">Export CSV</button>
             </div>
-
-            ${a.status === 'running' ? `<button class="btn btn-danger btn-big" onclick="stopAthlete(${a.id})">STOP REP ${repNum}</button>` : ''}
-            ${a.status === 'resting' ? `<button class="btn btn-success btn-big" onclick="nextRep(${a.id})">START REP ${repNum}</button>` : ''}
-
-            ${a.splits.length > 0 ? `
-              <div class="splits-list">
-                ${a.splits.map((s, i) => `<span class="split-chip">R${i+1}: ${formatTime(s)}</span>`).join('')}
-              </div>
-            ` : ''}
           </div>
-        `;
-      }).join('');
+
+          <div class="bg-slate-800 p-4 rounded-xl mb-6 border border-slate-700">
+            <label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Select Workout Mode</label>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {[
+                { key: 'EASY', label: 'Easy / Recovery', desc: 'Continuous aerobic pace' },
+                { key: 'TEMPO', label: 'Tempo / Threshold', desc: 'Lactate threshold work' },
+                { key: 'INTERVAL', label: 'Intervals (VO2max)', desc: '3k-5k race pace reps' },
+                { key: 'REP', label: 'Speed Repetitions', desc: 'Shorter, fast economy reps' }
+              ].map(mode => (
+                <button
+                  key={mode.key}
+                  onClick={() => handleWorkoutTypeChange(mode.key)}
+                  class={`p-3 rounded-lg border text-left transition-all ${workoutType === mode.key ? 'bg-indigo-600 border-indigo-400 text-white font-bold' : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'}`}
+                >
+                  <div class="text-sm font-bold">{mode.label}</div>
+                  <div class="text-xs opacity-75">{mode.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-700/60">
+              <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Distance (Meters)</label>
+                <input type="number" value={distance} onChange={e => setDistance(Number(e.target.value))} class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Reps</label>
+                <input type="number" value={totalReps} onChange={e => setTotalReps(Number(e.target.value))} class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Target Rest (Secs)</label>
+                <input type="number" value={targetRest} onChange={e => setTargetRest(Number(e.target.value))} class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono outline-none" />
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-6">
+            <h2 class="text-md font-bold text-slate-200 mb-2">Participating Athletes</h2>
+            <div class="flex flex-wrap gap-2">
+              {athletes.map(ath => (
+                <label key={ath.id} class={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition-all ${ath.selected ? 'bg-indigo-950/60 border-indigo-500 text-indigo-200 font-semibold' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
+                  <input type="checkbox" checked={ath.selected} onChange={() => toggleAthleteSelection(ath.id)} class="rounded border-slate-700 text-indigo-600 h-4 w-4" />
+                  <span>{ath.name}</span>
+                  <span class="text-xs opacity-60">({ath.vdot} VDOT)</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            {activeAthletes.map(ath => {
+              const targetSplitSecs = calculateZoneTargetSplit(ath.vdot, distance, workoutType);
+              const currentRepNumber = ath.splits.length + 1;
+
+              return (
+                <div key={ath.id} class={`p-5 rounded-xl border ${ath.status === 'running' ? 'bg-slate-800 border-emerald-500 shadow-lg' : ath.status === 'resting' ? 'bg-slate-800 border-amber-500' : 'bg-slate-800/80 border-slate-700'}`}>
+                  <div class="flex justify-between items-start mb-2">
+                    <div>
+                      <h3 class="font-bold text-lg text-slate-100">{ath.name}</h3>
+                      <p class="text-xs text-slate-400">VDOT: <span class="font-semibold text-indigo-400">{ath.vdot}</span> | 5K: {ath.fiveKPR}</p>
+                    </div>
+                    <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-900 text-slate-300">
+                      Rep {Math.min(currentRepNumber, totalReps)} / {totalReps}
+                    </span>
+                  </div>
+
+                  <div class="my-4 bg-slate-900 p-3 rounded-lg border border-slate-800">
+                    <div class="text-xs text-slate-400 flex justify-between mb-1">
+                      <span>Target ({workoutType}):</span>
+                      <span class="font-mono text-indigo-300 font-semibold">{formatTime(targetSplitSecs)}</span>
+                    </div>
+
+                    <div class="flex justify-between items-baseline mt-2">
+                      <div>
+                        <div class="text-xs text-slate-500 uppercase font-semibold">Rep Time</div>
+                        <div class={`text-3xl font-mono font-extrabold ${ath.status === 'running' ? 'text-emerald-400' : 'text-slate-200'}`}>
+                          {ath.status === 'running' ? formatTime(ath.currentSplit) : formatTime(ath.splits[ath.splits.length - 1] || 0)}
+                        </div>
+                      </div>
+
+                      {ath.status === 'resting' && (
+                        <div class="text-right">
+                          <div class="text-xs text-amber-400 uppercase font-semibold">Resting</div>
+                          <div class="text-2xl font-mono font-bold text-amber-300">{formatTime(ath.currentRest)}</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    {ath.status === 'running' && <button onClick={() => handleStopIndividual(ath.id)} class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-lg text-lg">STOP REP {currentRepNumber}</button>}
+                    {ath.status === 'resting' && <button onClick={() => handleStartNextRep(ath.id)} class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg">START REP {currentRepNumber}</button>}
+                  </div>
+
+                  {ath.splits.length > 0 && (
+                    <div class="mt-4 pt-3 border-t border-slate-700/60 flex flex-wrap gap-1.5">
+                      {ath.splits.map((s, i) => <span key={i} class="text-xs font-mono px-2 py-0.5 rounded bg-slate-900 text-indigo-300">R{i+1}: {formatTime(s)}</span>)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div class="bg-slate-800 p-5 rounded-xl border border-slate-700">
+            <h2 class="text-lg font-bold text-slate-200 mb-3">Add New Athlete</h2>
+            <form onSubmit={handleAddAthlete} class="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <input type="text" placeholder="Name" value={newAthleteName} onChange={e => setNewAthleteName(e.target.value)} class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none" />
+              <input type="text" placeholder="5K PR (e.g. 18:30)" value={newAthlete5k} onChange={e => setNewAthlete5k(e.target.value)} class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none" />
+              <input type="number" step="0.1" placeholder="Manual VDOT (Optional)" value={customVdot} onChange={e => setCustomVdot(e.target.value)} class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none" />
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-2 rounded-lg">Add Athlete</button>
+            </form>
+          </div>
+        </div>
+      );
     }
 
-    function exportCSV() {
-      let csv = `Athlete,VDOT,Splits\n`;
-      athletes.forEach(a => {
-        csv += `"${a.name}",${a.vdot},"${a.splits.map(s => formatTime(s)).join(' | ')}"\n`;
-      });
-      const blob = new Blob([csv], { type: 'text/csv' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `XC_Workout_${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
-    }
-
-    render();
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(<App />);
   </script>
 </body>
 </html>
