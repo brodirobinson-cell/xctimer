@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>XC Multi-Timer & Multi-Workout VDOT Tracker</title>
+  <title>XC Multi-Timer & VDOT Dashboard</title>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen">
+<body class="bg-slate-950 text-slate-100 min-h-screen">
   <div id="root"></div>
 
   <script type="text/babel">
@@ -173,133 +173,170 @@
       const activeAthletes = athletes.filter(a => a.selected);
 
       return (
-        <div class="max-w-7xl mx-auto p-4 sm:p-6">
-          <div class="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-700 pb-4 mb-6 gap-4">
+        <div class="w-full px-8 py-6">
+          {/* Desktop Header Bar */}
+          <div class="flex items-center justify-between border-b border-slate-800 pb-5 mb-6">
             <div>
-              <h1 class="text-3xl font-extrabold text-indigo-400 tracking-tight">XC Workout & Multi-Timer</h1>
-              <p class="text-slate-400 text-sm">Jack Daniels VDOT Pace Generator for Easy, Tempo, Interval & Speed Workouts</p>
+              <h1 class="text-3xl font-black text-indigo-400 tracking-tight">XC Multi-Timer & VDOT Dashboard</h1>
+              <p class="text-slate-400 text-sm mt-1">Desktop Coaching Suite — Jack Daniels VDOT Pacing & Group Interval Tracker</p>
             </div>
-            <div class="flex gap-2">
-              <button onClick={handleStartAll} class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-lg font-bold shadow-lg">
-                ▶ START ALL ({activeAthletes.length})
+            <div class="flex items-center gap-3">
+              <button onClick={handleStartAll} class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg font-bold text-base shadow-md transition-colors">
+                ▶ START ALL ACTIVE ({activeAthletes.length})
               </button>
-              <button onClick={handleResetAll} class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2.5 rounded-lg font-semibold">Reset</button>
-              <button onClick={handleExportCSV} class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg font-semibold">Export CSV</button>
+              <button onClick={handleResetAll} class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-5 py-3 rounded-lg font-semibold transition-colors border border-slate-700">Reset Timers</button>
+              <button onClick={handleExportCSV} class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-lg font-semibold transition-colors">Export CSV</button>
             </div>
           </div>
 
-          <div class="bg-slate-800 p-4 rounded-xl mb-6 border border-slate-700">
-            <label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Select Workout Mode</label>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {[
-                { key: 'EASY', label: 'Easy / Recovery', desc: 'Continuous aerobic pace' },
-                { key: 'TEMPO', label: 'Tempo / Threshold', desc: 'Lactate threshold work' },
-                { key: 'INTERVAL', label: 'Intervals (VO2max)', desc: '3k-5k race pace reps' },
-                { key: 'REP', label: 'Speed Repetitions', desc: 'Shorter, fast economy reps' }
-              ].map(mode => (
-                <button
-                  key={mode.key}
-                  onClick={() => handleWorkoutTypeChange(mode.key)}
-                  class={`p-3 rounded-lg border text-left transition-all ${workoutType === mode.key ? 'bg-indigo-600 border-indigo-400 text-white font-bold' : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'}`}
-                >
-                  <div class="text-sm font-bold">{mode.label}</div>
-                  <div class="text-xs opacity-75">{mode.desc}</div>
-                </button>
-              ))}
-            </div>
+          {/* Desktop 2-Column Main Layout */}
+          <div class="grid grid-cols-12 gap-6">
+            
+            {/* Left Control Sidebar (4 Columns) */}
+            <div class="col-span-4 space-y-6">
+              
+              {/* Workout Selector */}
+              <div class="bg-slate-900 p-5 rounded-xl border border-slate-800">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400 mb-4">Workout Mode</h2>
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                  {[
+                    { key: 'EASY', label: 'Easy / Recovery' },
+                    { key: 'TEMPO', label: 'Tempo' },
+                    { key: 'INTERVAL', label: 'Interval (VO2)' },
+                    { key: 'REP', label: 'Speed Reps' }
+                  ].map(mode => (
+                    <button
+                      key={mode.key}
+                      onClick={() => handleWorkoutTypeChange(mode.key)}
+                      class={`p-3 text-center rounded-lg border text-sm font-bold transition-all ${workoutType === mode.key ? 'bg-indigo-600 border-indigo-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'}`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pt-4 border-t border-slate-700/60">
-              <div>
-                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Distance (Meters)</label>
-                <input type="number" value={distance} onChange={e => setDistance(Number(e.target.value))} class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono outline-none" />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Reps</label>
-                <input type="number" value={totalReps} onChange={e => setTotalReps(Number(e.target.value))} class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono outline-none" />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Target Rest (Secs)</label>
-                <input type="number" value={targetRest} onChange={e => setTargetRest(Number(e.target.value))} class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono outline-none" />
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-6">
-            <h2 class="text-md font-bold text-slate-200 mb-2">Participating Athletes</h2>
-            <div class="flex flex-wrap gap-2">
-              {athletes.map(ath => (
-                <label key={ath.id} class={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition-all ${ath.selected ? 'bg-indigo-950/60 border-indigo-500 text-indigo-200 font-semibold' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
-                  <input type="checkbox" checked={ath.selected} onChange={() => toggleAthleteSelection(ath.id)} class="rounded border-slate-700 text-indigo-600 h-4 w-4" />
-                  <span>{ath.name}</span>
-                  <span class="text-xs opacity-60">({ath.vdot} VDOT)</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            {activeAthletes.map(ath => {
-              const targetSplitSecs = calculateZoneTargetSplit(ath.vdot, distance, workoutType);
-              const currentRepNumber = ath.splits.length + 1;
-
-              return (
-                <div key={ath.id} class={`p-5 rounded-xl border ${ath.status === 'running' ? 'bg-slate-800 border-emerald-500 shadow-lg' : ath.status === 'resting' ? 'bg-slate-800 border-amber-500' : 'bg-slate-800/80 border-slate-700'}`}>
-                  <div class="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 class="font-bold text-lg text-slate-100">{ath.name}</h3>
-                      <p class="text-xs text-slate-400">VDOT: <span class="font-semibold text-indigo-400">{ath.vdot}</span> | 5K: {ath.fiveKPR}</p>
-                    </div>
-                    <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-slate-900 text-slate-300">
-                      Rep {Math.min(currentRepNumber, totalReps)} / {totalReps}
-                    </span>
+                <div class="grid grid-cols-3 gap-3 pt-3 border-t border-slate-800">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">Distance (m)</label>
+                    <input type="number" value={distance} onChange={e => setDistance(Number(e.target.value))} class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-1.5 text-white font-mono text-sm outline-none focus:border-indigo-500" />
                   </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">Target Reps</label>
+                    <input type="number" value={totalReps} onChange={e => setTotalReps(Number(e.target.value))} class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-1.5 text-white font-mono text-sm outline-none focus:border-indigo-500" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-400 mb-1">Rest (s)</label>
+                    <input type="number" value={targetRest} onChange={e => setTargetRest(Number(e.target.value))} class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-1.5 text-white font-mono text-sm outline-none focus:border-indigo-500" />
+                  </div>
+                </div>
+              </div>
 
-                  <div class="my-4 bg-slate-900 p-3 rounded-lg border border-slate-800">
-                    <div class="text-xs text-slate-400 flex justify-between mb-1">
-                      <span>Target ({workoutType}):</span>
-                      <span class="font-mono text-indigo-300 font-semibold">{formatTime(targetSplitSecs)}</span>
-                    </div>
+              {/* Roster Management */}
+              <div class="bg-slate-900 p-5 rounded-xl border border-slate-800">
+                <div class="flex justify-between items-center mb-3">
+                  <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400">Roster Selection</h2>
+                  <span class="text-xs text-slate-500">{activeAthletes.length} / {athletes.length} Active</span>
+                </div>
+                <div class="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                  {athletes.map(ath => (
+                    <label key={ath.id} class={`flex items-center justify-between p-2.5 rounded-lg border text-sm cursor-pointer transition-all ${ath.selected ? 'bg-indigo-950/40 border-indigo-500/50 text-indigo-100 font-semibold' : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300'}`}>
+                      <div class="flex items-center gap-3">
+                        <input type="checkbox" checked={ath.selected} onChange={() => toggleAthleteSelection(ath.id)} class="rounded border-slate-700 text-indigo-600 h-4 w-4" />
+                        <span>{ath.name}</span>
+                      </div>
+                      <span class="text-xs font-mono text-slate-400">VDOT {ath.vdot} | {ath.fiveKPR}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-                    <div class="flex justify-between items-baseline mt-2">
-                      <div>
-                        <div class="text-xs text-slate-500 uppercase font-semibold">Rep Time</div>
-                        <div class={`text-3xl font-mono font-extrabold ${ath.status === 'running' ? 'text-emerald-400' : 'text-slate-200'}`}>
-                          {ath.status === 'running' ? formatTime(ath.currentSplit) : formatTime(ath.splits[ath.splits.length - 1] || 0)}
+              {/* Add Athlete */}
+              <div class="bg-slate-900 p-5 rounded-xl border border-slate-800">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400 mb-3">Add New Athlete</h2>
+                <form onSubmit={handleAddAthlete} class="space-y-3">
+                  <div>
+                    <input type="text" placeholder="Athlete Name" value={newAthleteName} onChange={e => setNewAthleteName(e.target.value)} class="w-full bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input type="text" placeholder="5K PR (18:30)" value={newAthlete5k} onChange={e => setNewAthlete5k(e.target.value)} class="bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500" />
+                    <input type="number" step="0.1" placeholder="Manual VDOT" value={customVdot} onChange={e => setCustomVdot(e.target.value)} class="bg-slate-950 border border-slate-800 rounded-md px-3 py-2 text-white text-sm outline-none focus:border-indigo-500" />
+                  </div>
+                  <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold py-2 rounded-md text-sm transition-colors">Add to Roster</button>
+                </form>
+              </div>
+
+            </div>
+
+            {/* Right Live Grid (8 Columns) */}
+            <div class="col-span-8">
+              <div class="grid grid-cols-2 gap-4">
+                {activeAthletes.map(ath => {
+                  const targetSplitSecs = calculateZoneTargetSplit(ath.vdot, distance, workoutType);
+                  const currentRepNumber = ath.splits.length + 1;
+
+                  return (
+                    <div key={ath.id} class={`p-5 rounded-xl border transition-all ${ath.status === 'running' ? 'bg-slate-900 border-emerald-500 ring-1 ring-emerald-500' : ath.status === 'resting' ? 'bg-slate-900 border-amber-500' : 'bg-slate-900 border-slate-800'}`}>
+                      <div class="flex justify-between items-start mb-3">
+                        <div>
+                          <h3 class="font-bold text-xl text-slate-100">{ath.name}</h3>
+                          <div class="text-xs text-slate-400 mt-0.5">VDOT: <span class="font-bold text-indigo-400">{ath.vdot}</span> | 5K PR: {ath.fiveKPR}</div>
+                        </div>
+                        <div class="text-right">
+                          <span class="text-xs font-bold px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-300">
+                            Rep {Math.min(currentRepNumber, totalReps)} / {totalReps}
+                          </span>
                         </div>
                       </div>
 
-                      {ath.status === 'resting' && (
-                        <div class="text-right">
-                          <div class="text-xs text-amber-400 uppercase font-semibold">Resting</div>
-                          <div class="text-2xl font-mono font-bold text-amber-300">{formatTime(ath.currentRest)}</div>
+                      <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 mb-4">
+                        <div class="flex justify-between items-center text-xs text-slate-400 pb-2 border-b border-slate-800/80">
+                          <span>Target Pace ({workoutType}):</span>
+                          <span class="font-mono text-indigo-300 font-bold text-sm">{formatTime(targetSplitSecs)}</span>
+                        </div>
+
+                        <div class="flex justify-between items-end mt-3">
+                          <div>
+                            <div class="text-xs text-slate-500 font-bold uppercase">Rep Time</div>
+                            <div class={`text-4xl font-mono font-black ${ath.status === 'running' ? 'text-emerald-400' : 'text-slate-100'}`}>
+                              {ath.status === 'running' ? formatTime(ath.currentSplit) : formatTime(ath.splits[ath.splits.length - 1] || 0)}
+                            </div>
+                          </div>
+
+                          {ath.status === 'resting' && (
+                            <div class="text-right">
+                              <div class="text-xs text-amber-400 font-bold uppercase">Resting</div>
+                              <div class="text-2xl font-mono font-bold text-amber-300">{formatTime(ath.currentRest)}</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div class="mb-3">
+                        {ath.status === 'running' && <button onClick={() => handleStopIndividual(ath.id)} class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-lg text-lg transition-colors">STOP REP {currentRepNumber}</button>}
+                        {ath.status === 'resting' && <button onClick={() => handleStartNextRep(ath.id)} class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg transition-colors">START REP {currentRepNumber}</button>}
+                        {ath.status === 'idle' && <button onClick={() => handleStopIndividual(ath.id)} disabled class="w-full bg-slate-800 text-slate-600 font-semibold py-2.5 rounded-lg cursor-not-allowed">Ready</button>}
+                      </div>
+
+                      {/* Split History Log */}
+                      {ath.splits.length > 0 && (
+                        <div class="pt-3 border-t border-slate-800">
+                          <div class="text-xs font-bold text-slate-500 uppercase mb-2">Completed Splits</div>
+                          <div class="flex flex-wrap gap-2">
+                            {ath.splits.map((s, i) => (
+                              <div key={i} class="text-xs font-mono px-2.5 py-1 rounded bg-slate-950 border border-slate-800 text-indigo-300">
+                                R{i+1}: <span class="font-bold text-slate-200">{formatTime(s)}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
+
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
+            </div>
 
-                  <div>
-                    {ath.status === 'running' && <button onClick={() => handleStopIndividual(ath.id)} class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-3 rounded-lg text-lg">STOP REP {currentRepNumber}</button>}
-                    {ath.status === 'resting' && <button onClick={() => handleStartNextRep(ath.id)} class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg">START REP {currentRepNumber}</button>}
-                  </div>
-
-                  {ath.splits.length > 0 && (
-                    <div class="mt-4 pt-3 border-t border-slate-700/60 flex flex-wrap gap-1.5">
-                      {ath.splits.map((s, i) => <span key={i} class="text-xs font-mono px-2 py-0.5 rounded bg-slate-900 text-indigo-300">R{i+1}: {formatTime(s)}</span>)}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <div class="bg-slate-800 p-5 rounded-xl border border-slate-700">
-            <h2 class="text-lg font-bold text-slate-200 mb-3">Add New Athlete</h2>
-            <form onSubmit={handleAddAthlete} class="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <input type="text" placeholder="Name" value={newAthleteName} onChange={e => setNewAthleteName(e.target.value)} class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none" />
-              <input type="text" placeholder="5K PR (e.g. 18:30)" value={newAthlete5k} onChange={e => setNewAthlete5k(e.target.value)} class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none" />
-              <input type="number" step="0.1" placeholder="Manual VDOT (Optional)" value={customVdot} onChange={e => setCustomVdot(e.target.value)} class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none" />
-              <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-2 rounded-lg">Add Athlete</button>
-            </form>
           </div>
         </div>
       );
