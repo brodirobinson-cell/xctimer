@@ -13,7 +13,13 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
+
+    const DEFAULT_ATHLETES = [
+      { id: '1', name: 'Alex M.', pbTime: '17:30', pbDistance: 5000, pbLabel: '5k', vdot: 57.8, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
+      { id: '2', name: 'Jordan T.', pbTime: '10:30', pbDistance: 3000, pbLabel: '3k', vdot: 53.6, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
+      { id: '3', name: 'Sam K.', pbTime: '02:55', pbDistance: 1000, pbLabel: '1k', vdot: 62.4, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 }
+    ];
 
     function parseTimeToSeconds(timeStr) {
       if (!timeStr) return 0;
@@ -29,11 +35,22 @@
       return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
     }
 
-    // Universal VDOT Calculator supporting any distance in meters
+    function parseDistanceToMeters(distInput) {
+      if (!distInput) return 5000;
+      const str = distInput.toString().trim().toLowerCase();
+      if (str.includes('10k')) return 10000;
+      if (str.includes('5k')) return 5000;
+      if (str.includes('3k')) return 3000;
+      if (str.includes('1.5k')) return 1500;
+      if (str.includes('1k')) return 1000;
+      const val = parseFloat(str);
+      return isNaN(val) ? 5000 : val;
+    }
+
     function calculateVDOT(raceSeconds, distanceMeters) {
       if (!raceSeconds || raceSeconds <= 0 || !distanceMeters || distanceMeters <= 0) return 0;
-      const t = raceSeconds / 60; // time in minutes
-      const v = distanceMeters / t; // velocity in meters/min
+      const t = raceSeconds / 60;
+      const v = distanceMeters / t;
       const vo2 = -4.60 + 0.182258 * v + 0.000104 * Math.pow(v, 2);
       const percentMax = 0.8 + 0.1894393 * Math.exp(-0.012778 * t) + 0.2989558 * Math.exp(-0.1932605 * t);
       return parseFloat((vo2 / percentMax).toFixed(1));
@@ -62,17 +79,46 @@
       const [totalReps, setTotalReps] = useState(5);
       const [targetRest, setTargetRest] = useState(120);
 
-      const [athletes, setAthletes] = useState([
-        { id: '1', name: 'Alex M.', pbTime: '17:30', pbDistance: 5000, pbLabel: '5k', vdot: 57.8, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
-        { id: '2', name: 'Jordan T.', pbTime: '10:30', pbDistance: 3000, pbLabel: '3k', vdot: 53.6, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 },
-        { id: '3', name: 'Sam K.', pbTime: '02:55', pbDistance: 1000, pbLabel: '1k', vdot: 62.4, selected: true, splits: [], restTimes: [], status: 'idle', startTime: 0, currentSplit: 0, currentRest: 0 }
-      ]);
+      const fileInputRef = useRef(null);
+
+      const [athletes, setAthletes] = useState(() => {
+        try {
+          const saved = localStorage.getItem('xc_vdot_roster');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            return parsed.map(ath => ({
+              ...ath,
+              splits: [],
+              restTimes: [],
+              status: 'idle',
+              startTime: 0,
+              currentSplit: 0,
+              currentRest: 0,
+              showRaceInput: false
+            }));
+          }
+        } catch (e) {
+          console.error('Failed to load saved roster', e);
+        }
+        return DEFAULT_ATHLETES;
+      });
 
       const [newAthleteName, setNewAthleteName] = useState('');
       const [newAthleteTime, setNewAthleteTime] = useState('');
       const [newAthletePbDist, setNewAthletePbDist] = useState(5000);
       const [customVdot, setCustomVdot] = useState('');
       const [isTimerRunning, setIsTimerRunning] = useState(false);
+
+      useEffect(() => {
+        try {
+          const rosterToSave = athletes.map(({ id, name, pbTime, pbDistance, pbLabel, vdot, selected }) => ({
+            id, name, pbTime, pbDistance, pbLabel, vdot, selected
+          }));
+          localStorage.setItem('xc_vdot_roster', JSON.stringify(rosterToSave));
+        } catch (e) {
+          console.error('Failed to save roster', e);
+        }
+      }, [athletes]);
 
       const handleWorkoutTypeChange = (mode) => {
         setWorkoutType(mode);
@@ -135,7 +181,8 @@
           status: 'idle',
           startTime: 0,
           currentSplit: 0,
-          currentRest: 0
+          currentRest: 0,
+          showRaceInput: false
         };
 
         setAthletes(prev => [...prev, newEntry]);
@@ -144,8 +191,114 @@
         setCustomVdot('');
       };
 
+      const handleCSVImport = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const text = event.target.result;
+          const lines = text.split('\n');
+          const newImported = [];
+          const distanceLabels = { 1000: '1k', 1500: '1.5k', 3000: '3k', 5000: '5k', 10000: '10k' };
+
+          lines.forEach((line, idx) => {
+            if (!line.trim()) return;
+            const parts = line.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
+            if (idx === 0 && (parts[0].toLowerCase().includes('name') || parts[0].toLowerCase().includes('athlete'))) return;
+
+            if (parts.length >= 2) {
+              const name = parts[0];
+              const pbTime = parts[1];
+              const pbDistMeters = parts[2] ? parseDistanceToMeters(parts[2]) : 5000;
+              const secs = parseTimeToSeconds(pbTime);
+              const computedVdot = secs > 0 ? calculateVDOT(secs, pbDistMeters) : 50;
+
+              if (name) {
+                newImported.push({
+                  id: (Date.now() + idx).toString(),
+                  name: name,
+                  pbTime: pbTime || 'N/A',
+                  pbDistance: pbDistMeters,
+                  pbLabel: distanceLabels[pbDistMeters] || `${pbDistMeters}m`,
+                  vdot: computedVdot,
+                  selected: true,
+                  splits: [],
+                  restTimes: [],
+                  status: 'idle',
+                  startTime: 0,
+                  currentSplit: 0,
+                  currentRest: 0,
+                  showRaceInput: false
+                });
+              }
+            }
+          });
+
+          if (newImported.length > 0) {
+            setAthletes(prev => [...prev, ...newImported]);
+            alert(`Successfully imported ${newImported.length} athletes!`);
+          } else {
+            alert('No valid athlete records found in CSV.');
+          }
+          e.target.value = '';
+        };
+        reader.readAsText(file);
+      };
+
+      const handleDownloadSampleCSV = () => {
+        const sampleContent = "data:text/csv;charset=utf-8,Name,PB Time,PB Distance\nAlex Smith,17:30,5000\nJordan Taylor,10:30,3k\nSam K.,02:55,1000\n";
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(sampleContent));
+        link.setAttribute("download", "roster_import_template.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+
       const handleDeleteAthlete = (id) => {
         setAthletes(prev => prev.filter(ath => ath.id !== id));
+      };
+
+      const handleUpgradeVDOT = (id, delta = 1.0) => {
+        setAthletes(prev => prev.map(ath => ath.id === id ? { ...ath, vdot: parseFloat((ath.vdot + delta).toFixed(1)) } : ath));
+      };
+
+      const handleUpdateRaceTime = (id, timeStr, distMeters) => {
+        const secs = parseTimeToSeconds(timeStr);
+        if (secs <= 0) return;
+        const newVdot = calculateVDOT(secs, distMeters);
+        const distanceLabels = { 1000: '1k', 1500: '1.5k', 3000: '3k', 5000: '5k', 10000: '10k' };
+
+        setAthletes(prev => prev.map(ath => {
+          if (ath.id === id) {
+            return {
+              ...ath,
+              pbTime: timeStr,
+              pbDistance: distMeters,
+              pbLabel: distanceLabels[distMeters] || `${distMeters}m`,
+              vdot: newVdot,
+              showRaceInput: false
+            };
+          }
+          return ath;
+        }));
+      };
+
+      const toggleRaceInput = (id) => {
+        setAthletes(prev => prev.map(ath => ath.id === id ? { ...ath, showRaceInput: !ath.showRaceInput } : ath));
+      };
+
+      const handleResetToDefaultRoster = () => {
+        if (window.confirm("Reset roster to default demo runners?")) {
+          setAthletes(DEFAULT_ATHLETES);
+        }
+      };
+
+      const handleClearRoster = () => {
+        if (window.confirm("Clear all athletes from your saved roster?")) {
+          setAthletes([]);
+        }
       };
 
       const handleStartAll = () => {
@@ -200,13 +353,43 @@
 
       const activeAthletes = athletes.filter(a => a.selected);
 
+      // --- INSIGHTS COMPUTATION LOGIC ---
+      const activeWithSplits = activeAthletes.filter(a => a.splits.length > 0);
+      let totalCompletedReps = 0;
+      let totalPaceDeltaSum = 0;
+      let standoutRunners = [];
+      let fadedRunners = [];
+
+      activeWithSplits.forEach(ath => {
+        const target = calculateZoneTargetSplit(ath.vdot, distance, workoutType);
+        totalCompletedReps += ath.splits.length;
+
+        const avgSplit = ath.splits.reduce((a, b) => a + b, 0) / ath.splits.length;
+        const diff = avgSplit - target; // negative means faster than target
+        totalPaceDeltaSum += diff * ath.splits.length;
+
+        if (diff < -1.5 && ath.splits.length >= 2) {
+          standoutRunners.push(`${ath.name} (-${Math.abs(diff).toFixed(1)}s/rep avg)`);
+        }
+
+        if (ath.splits.length >= 3) {
+          const firstRep = ath.splits[0];
+          const lastRep = ath.splits[ath.splits.length - 1];
+          if (lastRep - firstRep > 3.0) {
+            fadedRunners.push(`${ath.name} (+${(lastRep - firstRep).toFixed(1)}s fade)`);
+          }
+        }
+      });
+
+      const overallAvgDelta = totalCompletedReps > 0 ? (totalPaceDeltaSum / totalCompletedReps) : 0;
+
       return (
         <div class="w-full px-8 py-6">
           {/* Header */}
           <div class="flex items-center justify-between border-b border-slate-800 pb-5 mb-6">
             <div>
               <h1 class="text-3xl font-black text-indigo-400 tracking-tight">XC Multi-Timer & VDOT Dashboard</h1>
-              <p class="text-slate-400 text-sm mt-1">Desktop Coaching Suite — Universal Distance VDOT & Interval Tracker</p>
+              <p class="text-slate-400 text-sm mt-1">Desktop Coaching Suite — Auto-Refinement & Dynamic Insights</p>
             </div>
             <div class="flex items-center gap-3">
               <button onClick={handleStartAll} class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg font-bold text-base shadow-md transition-colors">
@@ -325,7 +508,8 @@
                   <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-400">Manage Roster</h2>
                   <span class="text-xs text-slate-400 font-mono">{activeAthletes.length} Active</span>
                 </div>
-                <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                
+                <div class="space-y-2 max-h-52 overflow-y-auto pr-1 mb-3">
                   {athletes.length === 0 ? (
                     <p class="text-xs text-slate-500 italic text-center py-4">No athletes added yet.</p>
                   ) : (
@@ -343,16 +527,40 @@
                     ))
                   )}
                 </div>
+
+                {/* CSV Import / Export Section */}
+                <div class="space-y-2 pt-2 border-t border-slate-800">
+                  <input
+                    type="file"
+                    accept=".csv"
+                    ref={fileInputRef}
+                    onChange={handleCSVImport}
+                    class="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                    class="w-full bg-indigo-900/50 hover:bg-indigo-800/60 text-indigo-200 border border-indigo-500/40 font-semibold text-xs py-2 rounded transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    📂 Import CSV Roster
+                  </button>
+
+                  <div class="flex gap-2">
+                    <button onClick={handleDownloadSampleCSV} class="flex-1 bg-slate-950 hover:bg-slate-800 text-slate-400 text-[11px] py-1 rounded border border-slate-800 transition-colors">CSV Template</button>
+                    <button onClick={handleResetToDefaultRoster} class="flex-1 bg-slate-950 hover:bg-slate-800 text-slate-400 text-[11px] py-1 rounded border border-slate-800 transition-colors">Defaults</button>
+                    <button onClick={handleClearRoster} class="flex-1 bg-slate-950 hover:bg-slate-800 text-rose-400/80 text-[11px] py-1 rounded border border-slate-800 transition-colors">Clear All</button>
+                  </div>
+                </div>
+
               </div>
 
             </div>
 
             {/* Right Main Grid */}
-            <div class="col-span-8">
+            <div class="col-span-8 space-y-6">
               {activeAthletes.length === 0 ? (
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center text-slate-500">
                   <p class="text-lg font-semibold mb-2 text-slate-400">No active athletes selected</p>
-                  <p class="text-sm">Use the panel on the left to add athletes or check off runners from your roster to start timing.</p>
+                  <p class="text-sm">Use the panel on the left to add athletes, import a CSV, or check off runners from your roster to start timing.</p>
                 </div>
               ) : (
                 <div class="grid grid-cols-2 gap-4">
@@ -360,17 +568,76 @@
                     const targetSplitSecs = calculateZoneTargetSplit(ath.vdot, distance, workoutType);
                     const currentRepNumber = ath.splits.length + 1;
 
+                    // Performance Flag logic: If avg split is at least 1.5s faster than target over >=2 reps
+                    const hasSplits = ath.splits.length >= 2;
+                    const avgSplit = hasSplits ? ath.splits.reduce((a, b) => a + b, 0) / ath.splits.length : 0;
+                    const splitDiff = hasSplits ? (avgSplit - targetSplitSecs) : 0;
+                    const outperformsTarget = hasSplits && splitDiff <= -1.5;
+
                     return (
-                      <div key={ath.id} class={`p-5 rounded-xl border transition-all ${ath.status === 'running' ? 'bg-slate-900 border-emerald-500 ring-1 ring-emerald-500' : ath.status === 'resting' ? 'bg-slate-900 border-amber-500' : 'bg-slate-900 border-slate-800'}`}>
-                        <div class="flex justify-between items-start mb-3">
+                      <div key={ath.id} class={`p-5 rounded-xl border transition-all relative ${ath.status === 'running' ? 'bg-slate-900 border-emerald-500 ring-1 ring-emerald-500' : ath.status === 'resting' ? 'bg-slate-900 border-amber-500' : 'bg-slate-900 border-slate-800'}`}>
+                        
+                        <div class="flex justify-between items-start mb-2">
                           <div>
                             <h3 class="font-bold text-xl text-slate-100">{ath.name}</h3>
-                            <div class="text-xs text-slate-400 mt-0.5">VDOT: <span class="font-bold text-indigo-400">{ath.vdot}</span> | {ath.pbLabel} PB: {ath.pbTime}</div>
+                            <div class="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
+                              <span>VDOT: <strong class="text-indigo-400">{ath.vdot}</strong></span>
+                              <span>| {ath.pbLabel} PB: {ath.pbTime}</span>
+                            </div>
                           </div>
-                          <span class="text-xs font-bold px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-300">
-                            Rep {Math.min(currentRepNumber, totalReps)} / {totalReps}
-                          </span>
+                          
+                          <div class="flex flex-col items-end gap-1">
+                            <span class="text-xs font-bold px-3 py-1 rounded-full bg-slate-950 border border-slate-800 text-slate-300">
+                              Rep {Math.min(currentRepNumber, totalReps)} / {totalReps}
+                            </span>
+                            <button
+                              onClick={() => toggleRaceInput(ath.id)}
+                              class="text-[11px] text-indigo-400 hover:text-indigo-300 underline font-semibold"
+                            >
+                              {ath.showRaceInput ? 'Cancel' : '+ Log Race Time'}
+                            </button>
+                          </div>
                         </div>
+
+                        {/* Race Result Quick-Update Form */}
+                        {ath.showRaceInput && (
+                          <div class="bg-indigo-950/60 p-3 rounded-lg border border-indigo-500/40 my-2 space-y-2 text-xs">
+                            <div class="font-bold text-indigo-200">Log Official Race Effort:</div>
+                            <div class="flex gap-2">
+                              <select id={`race-dist-${ath.id}`} defaultValue={ath.pbDistance} class="bg-slate-950 border border-slate-800 text-white rounded px-2 py-1">
+                                <option value={1000}>1k</option>
+                                <option value={1500}>1.5k</option>
+                                <option value={3000}>3k</option>
+                                <option value={5000}>5k</option>
+                                <option value={10000}>10k</option>
+                              </select>
+                              <input id={`race-time-${ath.id}`} type="text" placeholder="e.g. 17:15" class="bg-slate-950 border border-slate-800 text-white rounded px-2 py-1 flex-1 font-mono" />
+                              <button
+                                onClick={() => {
+                                  const timeVal = document.getElementById(`race-time-${ath.id}`).value;
+                                  const distVal = Number(document.getElementById(`race-dist-${ath.id}`).value);
+                                  handleUpdateRaceTime(ath.id, timeVal, distVal);
+                                }}
+                                class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1 rounded"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Coach Upgrade Flag Banner */}
+                        {outperformsTarget && (
+                          <div class="bg-emerald-950/80 border border-emerald-500/60 p-2.5 rounded-lg mb-3 text-xs flex items-center justify-between">
+                            <span class="text-emerald-200 font-medium">💡 Outpacing target by ~{Math.abs(splitDiff).toFixed(1)}s/rep!</span>
+                            <button
+                              onClick={() => handleUpgradeVDOT(ath.id, 1.0)}
+                              class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2.5 py-1 rounded shadow text-[11px]"
+                            >
+                              Upgrade VDOT +1.0
+                            </button>
+                          </div>
+                        )}
 
                         <div class="bg-slate-950 p-4 rounded-lg border border-slate-800 mb-4">
                           <div class="flex justify-between items-center text-xs text-slate-400 pb-2 border-b border-slate-800/80">
@@ -419,6 +686,67 @@
                   })}
                 </div>
               )}
+
+              {/* GENERATED WORKOUT INSIGHTS PANEL */}
+              <div class="bg-slate-900 border border-indigo-500/40 rounded-xl p-5 shadow-xl">
+                <div class="flex justify-between items-center mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">📊</span>
+                    <h2 class="text-base font-bold text-slate-100 uppercase tracking-wider">Live Workout Insights & Analytics</h2>
+                  </div>
+                  <span class="text-xs text-indigo-400 font-mono font-semibold bg-indigo-950/80 px-2.5 py-1 rounded border border-indigo-800">
+                    {totalCompletedReps} Total Reps Logged
+                  </span>
+                </div>
+
+                {totalCompletedReps === 0 ? (
+                  <p class="text-xs text-slate-500 italic py-2">
+                    Insights will populate automatically as runners complete their reps during the session.
+                  </p>
+                ) : (
+                  <div class="grid grid-cols-3 gap-4 pt-2">
+                    
+                    {/* Metric 1: Group Execution Score */}
+                    <div class="bg-slate-950 p-3.5 rounded-lg border border-slate-800">
+                      <div class="text-xs text-slate-400 font-semibold mb-1">Group Target Execution</div>
+                      <div class={`text-xl font-mono font-bold ${overallAvgDelta <= 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {overallAvgDelta <= 0 ? `${Math.abs(overallAvgDelta).toFixed(1)}s FASTER` : `${overallAvgDelta.toFixed(1)}s SLOWER`}
+                      </div>
+                      <div class="text-[11px] text-slate-500 mt-1">Average deviation from VDOT target pace across all active reps.</div>
+                    </div>
+
+                    {/* Metric 2: Standout / Upgrade Candidates */}
+                    <div class="bg-slate-950 p-3.5 rounded-lg border border-slate-800">
+                      <div class="text-xs text-slate-400 font-semibold mb-1">Outperforming Target</div>
+                      {standoutRunners.length === 0 ? (
+                        <div class="text-xs text-slate-500 py-1">None flagged yet</div>
+                      ) : (
+                        <div class="space-y-1">
+                          {standoutRunners.map((str, i) => (
+                            <div key={i} class="text-xs font-mono text-emerald-300 font-semibold">• {str}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Metric 3: Fade / Fatigue Watch */}
+                    <div class="bg-slate-950 p-3.5 rounded-lg border border-slate-800">
+                      <div class="text-xs text-slate-400 font-semibold mb-1">Pacing Fade (>3s drop-off)</div>
+                      {fadedRunners.length === 0 ? (
+                        <div class="text-xs text-emerald-400/80 font-semibold py-1">✓ Excellent group consistency</div>
+                      ) : (
+                        <div class="space-y-1">
+                          {fadedRunners.map((str, i) => (
+                            <div key={i} class="text-xs font-mono text-amber-300 font-semibold">• {str}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                )}
+              </div>
+
             </div>
 
           </div>
