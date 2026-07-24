@@ -29,13 +29,13 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             padding: 24px;
-            max-width: 1200px;
+            max-width: 1300px;
             margin: 0 auto;
             min-height: 100vh;
         }
 
         header {
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 16px;
             display: flex;
@@ -56,22 +56,59 @@
             margin-top: 4px;
         }
 
-        .controls {
+        /* Toolbar & Selectors */
+        .toolbar {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        .toolbar-group {
             display: flex;
             gap: 12px;
-            margin-bottom: 24px;
+            align-items: center;
             flex-wrap: wrap;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--subtext-color);
+            font-weight: 600;
+        }
+
+        select, input {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--accent-color);
         }
 
         button {
             background-color: var(--accent-color);
             color: var(--bg-color);
             border: none;
-            padding: 10px 18px;
+            padding: 8px 16px;
             border-radius: 6px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         button:hover {
@@ -96,9 +133,10 @@
             background-color: #dc2626;
         }
 
+        /* Grid Layout */
         .grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
             gap: 20px;
             margin-bottom: 24px;
         }
@@ -120,7 +158,7 @@
         }
 
         .athlete-name {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: bold;
         }
 
@@ -133,18 +171,37 @@
             font-weight: 600;
         }
 
+        .target-pace {
+            font-size: 0.85rem;
+            color: var(--subtext-color);
+            background-color: var(--bg-color);
+            padding: 6px 10px;
+            border-radius: 4px;
+            border-left: 3px solid var(--accent-color);
+        }
+
         .timer-display {
-            font-size: 2.5rem;
+            font-size: 2.4rem;
             font-family: monospace;
             font-weight: bold;
             text-align: center;
-            margin: 12px 0;
+            margin: 8px 0;
             color: var(--accent-color);
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .card-actions button {
+            flex: 1;
+            justify-content: center;
         }
 
         .splits-list {
             list-style: none;
-            max-height: 120px;
+            max-height: 140px;
             overflow-y: auto;
             border: 1px solid var(--border-color);
             border-radius: 6px;
@@ -165,6 +222,7 @@
             border-bottom: none;
         }
 
+        /* Insights Panel */
         .insights-panel {
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -174,7 +232,7 @@
         }
 
         .insights-header {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             margin-bottom: 16px;
             color: var(--accent-color);
             display: flex;
@@ -234,44 +292,40 @@
             <h1>Track Workout Hub</h1>
             <p class="subtitle">Real-time Split Tracking & Physiological Target Math</p>
         </div>
-        <button id="start-all-btn">Start All Timers</button>
+        <div style="display: flex; gap: 10px;">
+            <button id="start-all-btn">▶ Start All Timers</button>
+            <button id="reset-all-btn" class="danger">↺ Reset Session</button>
+        </div>
     </header>
 
-    <div class="controls">
-        <button id="add-runner-btn" class="btn-secondary">+ Add Athlete</button>
-        <button id="reset-all-btn" class="danger">Reset Session</button>
-    </div>
-
-    <div class="grid" id="runner-grid">
-        <!-- Default sample athlete cards -->
-        <div class="card" id="athlete-1">
-            <div class="card-header">
-                <span class="athlete-name">Athlete 1</span>
-                <span class="vdot-badge">VDOT: 52</span>
+    <!-- Workout Selector & Export Toolbar -->
+    <div class="toolbar">
+        <div class="toolbar-group">
+            <div>
+                <label for="workout-type">Active Session Presets:</label><br>
+                <select id="workout-type" onchange="updateWorkoutTargets()">
+                    <option value="400_interval">8x 400m @ I-Pace (Interval)</option>
+                    <option value="1000_threshold">5x 1000m @ T-Pace (Threshold)</option>
+                    <option value="200_repetition">10x 200m @ R-Pace (Repetition)</option>
+                    <option value="custom">Custom Free Run</option>
+                </select>
             </div>
-            <div class="timer-display" id="timer-1">00:00.0</div>
-            <div class="controls">
-                <button onclick="recordSplit(1)">Record Split</button>
+            <div>
+                <label for="new-athlete-name">Add Runner:</label><br>
+                <input type="text" id="new-athlete-name" placeholder="Name..." style="width: 130px;">
+                <input type="number" id="new-athlete-vdot" placeholder="VDOT" value="52" style="width: 70px;">
+                <button onclick="addAthleteFromInput()" class="btn-secondary">+ Add</button>
             </div>
-            <ul class="splits-list" id="splits-1">
-                <li><span>Split 1</span><span>--:--</span></li>
-            </ul>
         </div>
 
-        <div class="card" id="athlete-2">
-            <div class="card-header">
-                <span class="athlete-name">Athlete 2</span>
-                <span class="vdot-badge">VDOT: 54</span>
-            </div>
-            <div class="timer-display" id="timer-2">00:00.0</div>
-            <div class="controls">
-                <button onclick="recordSplit(2)">Record Split</button>
-            </div>
-            <ul class="splits-list" id="splits-2">
-                <li><span>Split 1</span><span>--:--</span></li>
-            </ul>
+        <div class="toolbar-group">
+            <button onclick="exportDataCSV()" class="btn-secondary">📥 Export CSV</button>
+            <button onclick="exportDataJSON()" class="btn-secondary">💾 Export JSON</button>
         </div>
     </div>
+
+    <!-- Runner Cards Grid -->
+    <div class="grid" id="runner-grid"></div>
 
     <!-- Workout Insights Panel -->
     <div class="insights-panel">
@@ -281,7 +335,7 @@
         <div class="metrics-grid">
             <div class="metric-item">
                 <div class="metric-label">Group Target Compliance</div>
-                <div class="metric-value" id="group-compliance">94% On Pace</div>
+                <div class="metric-value" id="group-compliance">95% On Pace</div>
                 <div class="flag flag-success">Target Zone Met</div>
             </div>
             <div class="metric-item">
@@ -298,16 +352,37 @@
     </div>
 
     <script>
+        // State
         let running = false;
         let startTime = 0;
         let elapsedTime = 0;
         let timerInterval = null;
-        let athleteCount = 2;
 
-        const startAllBtn = document.getElementById('start-all-btn');
-        const resetAllBtn = document.getElementById('reset-all-btn');
-        const addRunnerBtn = document.getElementById('add-runner-btn');
-        const runnerGrid = document.getElementById('runner-grid');
+        // Default roster with VDOT scores
+        let athletes = [
+            { id: 1, name: "Athlete 1", vdot: 54, splits: [] },
+            { id: 2, name: "Athlete 2", vdot: 52, splits: [] },
+            { id: 3, name: "Athlete 3", vdot: 48, splits: [] }
+        ];
+
+        // Target calculations per VDOT
+        function getTargetPace(vdot, workoutType) {
+            // Simplified VDOT target lookup for demo calculations
+            const factor = (60 - vdot) * 0.8;
+            if (workoutType === '400_interval') {
+                const targetSec = 72 + factor;
+                return `${targetSec.toFixed(1)}s / 400m`;
+            } else if (workoutType === '1000_threshold') {
+                const targetSec = 215 + (factor * 2.5);
+                const min = Math.floor(targetSec / 60);
+                const sec = (targetSec % 60).toFixed(0).padStart(2, '0');
+                return `${min}:${sec} / 1000m`;
+            } else if (workoutType === '200_repetition') {
+                const targetSec = 34 + (factor * 0.5);
+                return `${targetSec.toFixed(1)}s / 200m`;
+            }
+            return "Free Pacing";
+        }
 
         function formatTime(ms) {
             const totalSeconds = Math.floor(ms / 1000);
@@ -317,88 +392,152 @@
             return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${tenths}`;
         }
 
+        function renderAthletes() {
+            const grid = document.getElementById('runner-grid');
+            const workoutType = document.getElementById('workout-type').value;
+            grid.innerHTML = '';
+
+            athletes.forEach(athlete => {
+                const target = getTargetPace(athlete.vdot, workoutType);
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.id = `card-${athlete.id}`;
+
+                let splitsHTML = athlete.splits.map((s, idx) => 
+                    `<li><span>Split ${idx + 1}</span><span>${s}</span></li>`
+                ).reverse().join('');
+
+                if (athlete.splits.length === 0) {
+                    splitsHTML = '<li><span>Split 1</span><span>--:--</span></li>';
+                }
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <span class="athlete-name">${athlete.name}</span>
+                        <span class="vdot-badge">VDOT: ${athlete.vdot}</span>
+                    </div>
+                    <div class="target-pace">🎯 Target: <strong>${target}</strong></div>
+                    <div class="timer-display" id="timer-${athlete.id}">${formatTime(elapsedTime)}</div>
+                    <div class="card-actions">
+                        <button onclick="recordSplit(${athlete.id})">⏱ Record Split</button>
+                        <button class="btn-secondary" onclick="removeAthlete(${athlete.id})">✕</button>
+                    </div>
+                    <ul class="splits-list" id="splits-${athlete.id}">
+                        ${splitsHTML}
+                    </ul>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
         function updateTimers() {
             const now = Date.now();
             const currentMs = elapsedTime + (now - startTime);
             const formatted = formatTime(currentMs);
 
-            for (let i = 1; i <= athleteCount; i++) {
-                const timerEl = document.getElementById(`timer-${i}`);
-                if (timerEl) {
-                    timerEl.textContent = formatted;
-                }
-            }
+            athletes.forEach(athlete => {
+                const timerEl = document.getElementById(`timer-${athlete.id}`);
+                if (timerEl) timerEl.textContent = formatted;
+            });
         }
 
-        startAllBtn.addEventListener('click', () => {
+        document.getElementById('start-all-btn').addEventListener('click', function() {
             if (!running) {
                 running = true;
                 startTime = Date.now();
                 timerInterval = setInterval(updateTimers, 100);
-                startAllBtn.textContent = 'Pause All';
-                startAllBtn.classList.add('danger');
+                this.textContent = '⏸ Pause All';
+                this.classList.add('danger');
             } else {
                 running = false;
                 elapsedTime += Date.now() - startTime;
                 clearInterval(timerInterval);
-                startAllBtn.textContent = 'Start All Timers';
-                startAllBtn.classList.remove('danger');
+                this.textContent = '▶ Start All Timers';
+                this.classList.remove('danger');
             }
         });
 
-        resetAllBtn.addEventListener('click', () => {
+        document.getElementById('reset-all-btn').addEventListener('click', function() {
             running = false;
             clearInterval(timerInterval);
             elapsedTime = 0;
-            startAllBtn.textContent = 'Start All Timers';
-            startAllBtn.classList.remove('danger');
+            const startBtn = document.getElementById('start-all-btn');
+            startBtn.textContent = '▶ Start All Timers';
+            startBtn.classList.remove('danger');
 
-            for (let i = 1; i <= athleteCount; i++) {
-                const timerEl = document.getElementById(`timer-${i}`);
-                const splitsEl = document.getElementById(`splits-${i}`);
-                if (timerEl) timerEl.textContent = '00:00.0';
-                if (splitsEl) splitsEl.innerHTML = '<li><span>Split 1</span><span>--:--</span></li>';
-            }
-        });
-
-        addRunnerBtn.addEventListener('click', () => {
-            athleteCount++;
-            const newCard = document.createElement('div');
-            newCard.className = 'card';
-            newCard.id = `athlete-${athleteCount}`;
-            newCard.innerHTML = `
-                <div class="card-header">
-                    <span class="athlete-name">Athlete ${athleteCount}</span>
-                    <span class="vdot-badge">VDOT: 50</span>
-                </div>
-                <div class="timer-display" id="timer-${athleteCount}">00:00.0</div>
-                <div class="controls">
-                    <button onclick="recordSplit(${athleteCount})">Record Split</button>
-                </div>
-                <ul class="splits-list" id="splits-${athleteCount}">
-                    <li><span>Split 1</span><span>--:--</span></li>
-                </ul>
-            `;
-            runnerGrid.appendChild(newCard);
+            athletes.forEach(a => a.splits = []);
+            renderAthletes();
         });
 
         function recordSplit(id) {
-            const splitsEl = document.getElementById(`splits-${id}`);
             const timerEl = document.getElementById(`timer-${id}`);
-            if (splitsEl && timerEl) {
-                const currentSplit = timerEl.textContent;
-                const splitCount = splitsEl.children.length;
-                
-                // If it's the initial placeholder, clear it
-                if (splitCount === 1 && splitsEl.children[0].textContent.includes('--:--')) {
-                    splitsEl.innerHTML = '';
-                }
-
-                const li = document.createElement('li');
-                li.innerHTML = `<span>Split ${splitsEl.children.length + 1}</span><span>${currentSplit}</span>`;
-                splitsEl.insertBefore(li, splitsEl.firstChild);
+            const athlete = athletes.find(a => a.id === id);
+            if (timerEl && athlete) {
+                const splitVal = timerEl.textContent;
+                athlete.splits.push(splitVal);
+                renderAthletes();
             }
         }
+
+        function updateWorkoutTargets() {
+            renderAthletes();
+        }
+
+        function addAthleteFromInput() {
+            const nameInput = document.getElementById('new-athlete-name');
+            const vdotInput = document.getElementById('new-athlete-vdot');
+            const name = nameInput.value.trim() || `Athlete ${athletes.length + 1}`;
+            const vdot = parseInt(vdotInput.value) || 50;
+
+            const newId = athletes.length > 0 ? Math.max(...athletes.map(a => a.id)) + 1 : 1;
+            athletes.push({ id: newId, name: name, vdot: vdot, splits: [] });
+
+            nameInput.value = '';
+            renderAthletes();
+        }
+
+        function removeAthlete(id) {
+            athletes = athletes.filter(a => a.id !== id);
+            renderAthletes();
+        }
+
+        // --- Data Export Features ---
+        function exportDataCSV() {
+            let csv = "Athlete Name,VDOT,Split Number,Time\n";
+            athletes.forEach(a => {
+                if (a.splits.length === 0) {
+                    csv += `"${a.name}",${a.vdot},No Splits recorded,--:--\n`;
+                } else {
+                    a.splits.forEach((s, idx) => {
+                        csv += `"${a.name}",${a.vdot},Split ${idx + 1},${s}\n`;
+                    });
+                }
+            });
+
+            downloadBlob(csv, `track_workout_${new Date().toISOString().slice(0,10)}.csv`, 'text/csv');
+        }
+
+        function exportDataJSON() {
+            const data = {
+                workoutType: document.getElementById('workout-type').value,
+                date: new Date().toISOString(),
+                athletes: athletes
+            };
+            downloadBlob(JSON.stringify(data, null, 2), `track_workout_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
+        }
+
+        function downloadBlob(content, filename, contentType) {
+            const blob = new Blob([content], { type: contentType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initial Render
+        renderAthletes();
     </script>
 </body>
 </html>
