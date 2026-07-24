@@ -29,7 +29,7 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             padding: 24px;
-            max-width: 1300px;
+            max-width: 1350px;
             margin: 0 auto;
             min-height: 100vh;
         }
@@ -56,13 +56,19 @@
             margin-top: 4px;
         }
 
-        /* Toolbar & Selectors */
+        /* Toolbar & Controls */
         .toolbar {
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
             padding: 16px;
             border-radius: 8px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .toolbar-row {
             display: flex;
             gap: 16px;
             align-items: center;
@@ -133,7 +139,7 @@
             background-color: #dc2626;
         }
 
-        /* Grid Layout */
+        /* Grid & Cards */
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
@@ -162,7 +168,7 @@
             font-weight: bold;
         }
 
-        .vdot-badge {
+        .pb-badge {
             background-color: #334155;
             color: var(--accent-color);
             padding: 2px 8px;
@@ -172,20 +178,28 @@
         }
 
         .target-pace {
-            font-size: 0.85rem;
-            color: var(--subtext-color);
+            font-size: 0.88rem;
+            color: var(--text-color);
             background-color: var(--bg-color);
-            padding: 6px 10px;
-            border-radius: 4px;
-            border-left: 3px solid var(--accent-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border-left: 4px solid var(--accent-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .target-pace strong {
+            color: var(--accent-color);
+            font-size: 1.05rem;
         }
 
         .timer-display {
-            font-size: 2.4rem;
+            font-size: 2.5rem;
             font-family: monospace;
             font-weight: bold;
             text-align: center;
-            margin: 8px 0;
+            margin: 6px 0;
             color: var(--accent-color);
         }
 
@@ -290,7 +304,7 @@
     <header>
         <div>
             <h1>Track Workout Hub</h1>
-            <p class="subtitle">Real-time Split Tracking & Physiological Target Math</p>
+            <p class="subtitle">Real-Time Split Tracking & PB-Driven Pace Targets</p>
         </div>
         <div style="display: flex; gap: 10px;">
             <button id="start-all-btn">▶ Start All Timers</button>
@@ -298,29 +312,62 @@
         </div>
     </header>
 
-    <!-- Workout Selector & Export Toolbar -->
+    <!-- Controls Toolbar -->
     <div class="toolbar">
-        <div class="toolbar-group">
-            <div>
-                <label for="workout-type">Active Session Presets:</label><br>
-                <select id="workout-type" onchange="updateWorkoutTargets()">
-                    <option value="400_interval">8x 400m @ I-Pace (Interval)</option>
-                    <option value="1000_threshold">5x 1000m @ T-Pace (Threshold)</option>
-                    <option value="200_repetition">10x 200m @ R-Pace (Repetition)</option>
-                    <option value="custom">Custom Free Run</option>
-                </select>
+        <!-- Flexible Workout Designer -->
+        <div class="toolbar-row">
+            <div class="toolbar-group">
+                <div>
+                    <label for="workout-dist">Rep Distance (m):</label><br>
+                    <input type="number" id="workout-dist" value="400" step="50" style="width: 100px;" onchange="renderAthletes()">
+                </div>
+                <div>
+                    <label for="workout-zone">Target Effort Zone:</label><br>
+                    <select id="workout-zone" onchange="renderAthletes()">
+                        <option value="I">Interval Zone (~3k/5k Race Pace)</option>
+                        <option value="R">Repetition Zone (Speed / <1k Pace)</option>
+                        <option value="T">Threshold Zone (~10k/HM Pace)</option>
+                        <option value="E">Easy / Aerobic Zone</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="workout-rest">Rest Interval:</label><br>
+                    <input type="text" id="workout-rest" value="60s" placeholder="e.g. 60s or 1:30" style="width: 110px;" onchange="renderAthletes()">
+                </div>
             </div>
-            <div>
-                <label for="new-athlete-name">Add Runner:</label><br>
-                <input type="text" id="new-athlete-name" placeholder="Name..." style="width: 130px;">
-                <input type="number" id="new-athlete-vdot" placeholder="VDOT" value="52" style="width: 70px;">
-                <button onclick="addAthleteFromInput()" class="btn-secondary">+ Add</button>
+
+            <div class="toolbar-group">
+                <button onclick="exportDataCSV()" class="btn-secondary">📥 Export CSV</button>
+                <button onclick="exportDataJSON()" class="btn-secondary">💾 Export JSON</button>
             </div>
         </div>
 
-        <div class="toolbar-group">
-            <button onclick="exportDataCSV()" class="btn-secondary">📥 Export CSV</button>
-            <button onclick="exportDataJSON()" class="btn-secondary">💾 Export JSON</button>
+        <hr style="border: none; border-top: 1px solid var(--border-color);">
+
+        <!-- Add Athlete with Race PB -->
+        <div class="toolbar-row">
+            <div class="toolbar-group" style="width: 100%;">
+                <div>
+                    <label for="new-name">Athlete Name:</label><br>
+                    <input type="text" id="new-name" placeholder="e.g. Alex" style="width: 130px;">
+                </div>
+                <div>
+                    <label for="new-pb-dist">PB Event:</label><br>
+                    <select id="new-pb-dist">
+                        <option value="1km">1 km</option>
+                        <option value="3km" selected>3 km</option>
+                        <option value="5km">5 km</option>
+                        <option value="10km">10 km</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="new-pb-time">PB Time (MM:SS):</label><br>
+                    <input type="text" id="new-pb-time" placeholder="09:45" style="width: 100px;">
+                </div>
+                <div style="align-self: flex-end;">
+                    <button onclick="addAthleteFromInput()" class="btn-secondary">+ Add Athlete</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -339,9 +386,9 @@
                 <div class="flag flag-success">Target Zone Met</div>
             </div>
             <div class="metric-item">
-                <div class="metric-label">VDOT Progression Flag</div>
+                <div class="metric-label">Pace Progression Alert</div>
                 <div class="metric-value" id="vdot-flag">2 Athletes Ready</div>
-                <div class="flag flag-warning">Bump VDOT Target</div>
+                <div class="flag flag-warning">Consider Faster Target</div>
             </div>
             <div class="metric-item">
                 <div class="metric-label">Performance Decay Alert</div>
@@ -352,36 +399,61 @@
     </div>
 
     <script>
-        // State
+        // System State
         let running = false;
         let startTime = 0;
         let elapsedTime = 0;
         let timerInterval = null;
 
-        // Default roster with VDOT scores
+        // Default roster initialized with Race PBs
         let athletes = [
-            { id: 1, name: "Athlete 1", vdot: 54, splits: [] },
-            { id: 2, name: "Athlete 2", vdot: 52, splits: [] },
-            { id: 3, name: "Athlete 3", vdot: 48, splits: [] }
+            { id: 1, name: "Runner 1", pbDist: "3km", pbTime: "09:30", splits: [] },
+            { id: 2, name: "Runner 2", pbDist: "5km", pbTime: "17:15", splits: [] },
+            { id: 3, name: "Runner 3", pbDist: "10km", pbTime: "38:00", splits: [] }
         ];
 
-        // Target calculations per VDOT
-        function getTargetPace(vdot, workoutType) {
-            // Simplified VDOT target lookup for demo calculations
-            const factor = (60 - vdot) * 0.8;
-            if (workoutType === '400_interval') {
-                const targetSec = 72 + factor;
-                return `${targetSec.toFixed(1)}s / 400m`;
-            } else if (workoutType === '1000_threshold') {
-                const targetSec = 215 + (factor * 2.5);
-                const min = Math.floor(targetSec / 60);
-                const sec = (targetSec % 60).toFixed(0).padStart(2, '0');
-                return `${min}:${sec} / 1000m`;
-            } else if (workoutType === '200_repetition') {
-                const targetSec = 34 + (factor * 0.5);
-                return `${targetSec.toFixed(1)}s / 200m`;
+        // Helper: Convert MM:SS or M:SS to total seconds
+        function parseTimeToSeconds(timeStr) {
+            if (!timeStr || !timeStr.includes(':')) return 0;
+            const parts = timeStr.trim().split(':');
+            const mins = parseFloat(parts[0]) || 0;
+            const secs = parseFloat(parts[1]) || 0;
+            return (mins * 60) + secs;
+        }
+
+        // Helper: Format total seconds to MM:SS.s or SS.s
+        function formatSecondsToPace(totalSec) {
+            if (isNaN(totalSec) || totalSec <= 0) return "--:--";
+            if (totalSec < 60) {
+                return `${totalSec.toFixed(1)}s`;
             }
-            return "Free Pacing";
+            const mins = Math.floor(totalSec / 60);
+            const secs = (totalSec % 60).toFixed(1);
+            const formattedSecs = secs < 10 ? `0${secs}` : secs;
+            return `${mins}:${formattedSecs}`;
+        }
+
+        // Calculate custom target split based on Athlete's PB, Rep Distance, and Intensity Zone
+        function calculateTargetSplit(athlete, repDistMeters, zone) {
+            const pbSec = parseTimeToSeconds(athlete.pbTime);
+            if (pbSec <= 0) return "Set valid PB";
+
+            let basePace1k = 0;
+            if (athlete.pbDist === "1km") basePace1k = pbSec;
+            else if (athlete.pbDist === "3km") basePace1k = pbSec / 3;
+            else if (athlete.pbDist === "5km") basePace1k = pbSec / 5;
+            else if (athlete.pbDist === "10km") basePace1k = pbSec / 10;
+
+            let zoneMultiplier = 1.0;
+            if (zone === 'R') zoneMultiplier = 0.94;
+            else if (zone === 'I') zoneMultiplier = 1.00;
+            else if (zone === 'T') zoneMultiplier = 1.08;
+            else if (zone === 'E') zoneMultiplier = 1.22;
+
+            const targetPacePerMeter = (basePace1k / 1000) * zoneMultiplier;
+            const repTargetSec = targetPacePerMeter * repDistMeters;
+
+            return formatSecondsToPace(repTargetSec);
         }
 
         function formatTime(ms) {
@@ -394,11 +466,13 @@
 
         function renderAthletes() {
             const grid = document.getElementById('runner-grid');
-            const workoutType = document.getElementById('workout-type').value;
+            const repDist = parseFloat(document.getElementById('workout-dist').value) || 400;
+            const zone = document.getElementById('workout-zone').value;
+            const rest = document.getElementById('workout-rest').value.trim() || "60s";
             grid.innerHTML = '';
 
             athletes.forEach(athlete => {
-                const target = getTargetPace(athlete.vdot, workoutType);
+                const targetSplit = calculateTargetSplit(athlete, repDist, zone);
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.id = `card-${athlete.id}`;
@@ -414,9 +488,12 @@
                 card.innerHTML = `
                     <div class="card-header">
                         <span class="athlete-name">${athlete.name}</span>
-                        <span class="vdot-badge">VDOT: ${athlete.vdot}</span>
+                        <span class="pb-badge">PB (${athlete.pbDist}): ${athlete.pbTime}</span>
                     </div>
-                    <div class="target-pace">🎯 Target: <strong>${target}</strong></div>
+                    <div class="target-pace">
+                        <span>🎯 Target (${repDist}m @ ${zone}-Zone):</span>
+                        <span><strong>${targetSplit}</strong> <span style="color: var(--subtext-color); font-size: 0.8rem;">(Rest: ${rest})</span></span>
+                    </div>
                     <div class="timer-display" id="timer-${athlete.id}">${formatTime(elapsedTime)}</div>
                     <div class="card-actions">
                         <button onclick="recordSplit(${athlete.id})">⏱ Record Split</button>
@@ -479,20 +556,20 @@
             }
         }
 
-        function updateWorkoutTargets() {
-            renderAthletes();
-        }
-
         function addAthleteFromInput() {
-            const nameInput = document.getElementById('new-athlete-name');
-            const vdotInput = document.getElementById('new-athlete-vdot');
-            const name = nameInput.value.trim() || `Athlete ${athletes.length + 1}`;
-            const vdot = parseInt(vdotInput.value) || 50;
+            const nameInput = document.getElementById('new-name');
+            const pbDistSelect = document.getElementById('new-pb-dist');
+            const pbTimeInput = document.getElementById('new-pb-time');
+
+            const name = nameInput.value.trim() || `Runner ${athletes.length + 1}`;
+            const pbDist = pbDistSelect.value;
+            const pbTime = pbTimeInput.value.trim() || "10:00";
 
             const newId = athletes.length > 0 ? Math.max(...athletes.map(a => a.id)) + 1 : 1;
-            athletes.push({ id: newId, name: name, vdot: vdot, splits: [] });
+            athletes.push({ id: newId, name: name, pbDist: pbDist, pbTime: pbTime, splits: [] });
 
             nameInput.value = '';
+            pbTimeInput.value = '';
             renderAthletes();
         }
 
@@ -501,15 +578,20 @@
             renderAthletes();
         }
 
-        // --- Data Export Features ---
+        // --- Exports ---
         function exportDataCSV() {
-            let csv = "Athlete Name,VDOT,Split Number,Time\n";
+            const repDist = document.getElementById('workout-dist').value;
+            const zone = document.getElementById('workout-zone').value;
+            const rest = document.getElementById('workout-rest').value;
+            let csv = `Athlete Name,PB Event,PB Time,Workout Distance,Zone,Rest Interval,Target Split,Split Number,Recorded Time\n`;
+            
             athletes.forEach(a => {
+                const target = calculateTargetSplit(a, repDist, zone);
                 if (a.splits.length === 0) {
-                    csv += `"${a.name}",${a.vdot},No Splits recorded,--:--\n`;
+                    csv += `"${a.name}",${a.pbDist},${a.pbTime},${repDist}m,Zone ${zone},"${rest}",${target},No Splits,--:--\n`;
                 } else {
                     a.splits.forEach((s, idx) => {
-                        csv += `"${a.name}",${a.vdot},Split ${idx + 1},${s}\n`;
+                        csv += `"${a.name}",${a.pbDist},${a.pbTime},${repDist}m,Zone ${zone},"${rest}",${target},Split ${idx + 1},${s}\n`;
                     });
                 }
             });
@@ -519,7 +601,9 @@
 
         function exportDataJSON() {
             const data = {
-                workoutType: document.getElementById('workout-type').value,
+                repDistanceMeters: document.getElementById('workout-dist').value,
+                effortZone: document.getElementById('workout-zone').value,
+                restInterval: document.getElementById('workout-rest').value,
                 date: new Date().toISOString(),
                 athletes: athletes
             };
